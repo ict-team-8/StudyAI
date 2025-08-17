@@ -1,0 +1,33 @@
+# 핵심 API 서버 관련
+fastapi # 웹 API 프레임워크, 엔드포인트 라우팅, 요청/응답 처리 
+uvicorn[standard] # Fast API 앱 띄울 때 실행 기
+python-multipart # 파일 업로드(form-data) 지원, 이미지나 문서를 업로드 받을 계획 있따면 필요
+pydantic # 데이터 검증/스키마 정의, Fast API가 요청 body를 Python 객체로 바꿀 때 사용
+python-dotenv # .env 파일 로딩
+
+# DB 관련
+SQLAlchemy>=2 # ORM, DB와 객체 매핑, 쿼리 직접 안쓰고 Python 객체로 DB 다룸, MySQL 쓸거면 필요
+asyncmy                 # ← MySQL 8 권장(캐싱 인증 지원)
+
+# 인증/보안
+passlib[bcrypt] # 비밀번호 해시
+fastapi-users[sqlalchemy,oauth] # 사용자 관리/로그인/OAuth (구글, 깃허브 등) 쉽게 붙여주는 라이브러리
+
+# 추가 기능
+requests # 외부 API 호출할 때 사용. 예: 외부 서버에 POST 요청, 필요할 때만
+beautifulsoup4 # HTML 파싱/스크래핑, 웹페이지 데이터 크롤링할 때 적격
+PyPDF2 # PDF 업로드 분석 기능 시 필요
+
+# AI/RAG (민지 기능 기준)
+google-generativeai
+langchain
+langchain-google-genai
+langchain-community
+langchain-huggingface
+chromadb
+# faiss-cpu -> 일단 빌드 실패라서 뺐음
+rank-bm25
+pypdf
+tiktoken
+kss
+matplotlib
