@@ -26,9 +26,11 @@ def health():
 # API 라우팅 분리
 from routers.ai import router as ai_router
 from routers.auth import router as auth_router
+from routers.subjects import router as subject_router
 
 app.include_router(ai_router, prefix="/api/ai", tags=["ai"])
 app.include_router(auth_router, prefix="/api", tags=["auth"])
+app.include_router(subject_router, prefix="/api", tags=["subject"])
 
 
 
