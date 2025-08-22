@@ -11,13 +11,14 @@ import Tabs from "../components/Tabs";
 
 type Subject = { subject_id: number; name: string };
 
-export default function UploadPage(){
+// onUploaded 콜백을 받도록 시그니처 변경
+export default function UploadPage({ onUploaded }: { onUploaded: (subjectId: number) => void }){
   const { user } = useAuth();
   const [subject, setSubject] = useState<Subject|null>(null);
   const [openSubject, setOpenSubject] = useState(false);
   const [file, setFile] = useState<File|undefined>();
   const [text, setText] = useState("");
-  const [out, setOut] = useState("");
+  // const [out, setOut] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -51,8 +52,13 @@ export default function UploadPage(){
     if(file) form.append("file", file);
     if(text.trim()) form.append("text", text.trim());
 
-    const { data } = await api.post("/documents/upload", form, { headers: { "Content-Type":"multipart/form-data" } });
-    setOut(JSON.stringify(data, null, 2));
+    // 업로드만 실행 (응답 바디는 화면에 출력하지 않음)
+    await api.post("/documents/upload", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    // 성공 → 상위(App) 콜백으로 탭 전환 + subject 전달
+    onUploaded(subject.subject_id);
   }
 
 return (
@@ -184,7 +190,6 @@ return (
         </button>
       </div>
 
-      {out && <pre className="sa-result">{out}</pre>}
     </section>
 
     {/* 과목 선택/생성 모달 */}

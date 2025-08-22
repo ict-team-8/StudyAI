@@ -146,3 +146,44 @@ body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, R
   margin-top: 4px;
 }
 
+/* ───── SummaryQA 아코디언 ───── */
+.sa-accordion { display: grid; gap: 10px; }
+
+.sa-acc {
+  border: 1px solid #eef2ff;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sa-acc__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+  border-radius: 12px;
+}
+
+.sa-acc__header:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.sa-acc__chev {
+  transition: transform .18s ease;
+}
+
+.sa-acc.open .sa-acc__chev {
+  transform: rotate(180deg);
+}
+
+.sa-acc__body {
+  padding: 12px 14px 14px;
+  border-top: 1px solid #f1f5ff;
+}
