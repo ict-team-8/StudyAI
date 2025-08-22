@@ -51,7 +51,7 @@ export default function UploadPage(){
       </section>
 
       {/* 탭바 */}
-      <Tabs/>
+      {/* <Tabs/> */}
 
       {/* 업로드 카드 */}
       <section className="sa-card">
