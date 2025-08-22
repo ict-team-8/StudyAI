@@ -45,10 +45,10 @@ export default function UploadPage(){
   return (
     <div className="sa-container">
       {/* 히어로 영역 (타이틀/서브카피) */}
-      <section className="sa-hero">
+      {/* <section className="sa-hero">
         <h1 className="sa-hero__title">AI로 더 효율적인 학습을 시작하세요</h1>
         <p className="sa-hero__subtitle">자료 업로드부터 문제 풀이까지, 모든 학습 과정을 AI가 도와드립니다.</p>
-      </section>
+      </section> */}
 
       {/* 탭바 */}
       {/* <Tabs/> */}
