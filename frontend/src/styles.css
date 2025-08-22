@@ -82,3 +82,108 @@ body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, R
 .sa-list__item.selectable{cursor:pointer}
 .sa-list__item.selectable:hover{background:#f7f7ff}
 .sa-list__item.create{color:#5f49ff; font-weight:700; cursor:pointer}
+
+/* PDF 파일 업로드 이후 상태변화 */
+/* 파일 선택 시 드롭존 강조 */
+.sa-dropzone.filled {
+  border-color: #c9cffc;
+  background: linear-gradient(180deg, #f9f9ff, #ffffff);
+}
+
+/* 선택된 파일 정보 칩 */
+.sa-filechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.sa-filechip__icon { font-size: 16px; }
+.sa-filechip__name {
+  max-width: 44ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sa-filechip__size { color: var(--sub); font-size: 13px; }
+
+/* 준비됨 배지 (텍스트/파일 모두 재사용) */
+.sa-badge.ready {
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 이미지 미리보기 썸네일 */
+.sa-preview {
+  width: 160px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--ring);
+  box-shadow: var(--shadow);
+  margin: 8px 0 6px;
+}
+
+/* 선택 상태 액션 버튼 정렬 */
+.sa-selected {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 12px;
+  text-align: center;
+}
+.sa-selected__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ───── SummaryQA 아코디언 ───── */
+.sa-accordion { display: grid; gap: 10px; }
+
+.sa-acc {
+  border: 1px solid #eef2ff;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sa-acc__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+  border-radius: 12px;
+}
+
+.sa-acc__header:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.sa-acc__chev {
+  transition: transform .18s ease;
+}
+
+.sa-acc.open .sa-acc__chev {
+  transform: rotate(180deg);
+}
+
+.sa-acc__body {
+  padding: 12px 14px 14px;
+  border-top: 1px solid #f1f5ff;
+}
