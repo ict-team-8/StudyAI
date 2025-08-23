@@ -31,3 +31,12 @@ pypdf
 tiktoken
 kss
 matplotlib
+
+# === Google Generative AI SDK ===
+google-generativeai
+
+# === BM25 점수화 (선택: 사용 시) ===
+rank-bm25
+
+# === 기타 ===
+numpy   # rank-bm25 내부에서 사용

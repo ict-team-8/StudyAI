@@ -32,7 +32,6 @@ app.include_router(auth_router, prefix="/api", tags=["auth"])
 
 
 
-
 # swagger ui에만 영향가는 코드 (신경쓰지 마세요)
 from fastapi.openapi.utils import get_openapi
 
