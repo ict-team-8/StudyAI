@@ -6,6 +6,7 @@ import Header from "./components/Header";
 import UploadPage from "./pages/UploadPage";
 import Tabs, { type TabKey } from "./components/Tabs";
 import SummaryQA from "./pages/SummaryQA";
+import SmartQA from "./pages/SmartQA"; 
 
 export default function App() {
   // 현재 활성 탭 상태 (초기값: 자료 업로드)
@@ -28,25 +29,31 @@ export default function App() {
       case "qa":
         // ✅ 2열 레이아웃: 좌측만 Summary, 우측은 자리만 잡아둠
         return (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              alignItems: "start",
-            }}
-          >
-            <SummaryQA subjectId={subjectId} />
-            <section className="sa-card" style={{ padding: 20, minHeight: 200 }}>
-              <div className="sa-card__title" style={{ marginBottom: 8 }}>
-                스마트 Q&A (준비 중)
-              </div>
-              <p className="sa-card__desc">
-                업로드한 자료 기반 Q&A와 대화 기록 영역입니다.
-              </p>
-            </section>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
+            <SummaryQA subjectId={subjectId}/>
+            <SmartQA subjectId={subjectId}/>
           </div>
         );
+        // return (
+        //   <div
+        //     style={{
+        //       display: "grid",
+        //       gridTemplateColumns: "1fr 1fr",
+        //       gap: 16,
+        //       alignItems: "start",
+        //     }}
+        //   >
+        //     <SummaryQA subjectId={subjectId} />
+        //     <section className="sa-card" style={{ padding: 20, minHeight: 200 }}>
+        //       <div className="sa-card__title" style={{ marginBottom: 8 }}>
+        //         스마트 Q&A (준비 중)
+        //       </div>
+        //       <p className="sa-card__desc">
+        //         업로드한 자료 기반 Q&A와 대화 기록 영역입니다.
+        //       </p>
+        //     </section>
+        //   </div>
+        // );
 
       case "gen":
         return <Placeholder title="문제 생성" />;

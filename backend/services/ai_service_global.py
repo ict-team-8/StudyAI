@@ -49,9 +49,14 @@ else:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 # ---- 임베딩 (전역 1회만 로드) ----
+# --> 영어 적용 
+# _EMBEDDINGS = HuggingFaceEmbeddings(
+#     model_name="sentence-transformers/all-mpnet-base-v2",
+#     model_kwargs={'device': 'cpu'}
+# )
 _EMBEDDINGS = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-mpnet-base-v2",
-    model_kwargs={'device': 'cpu'}
+    model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+    model_kwargs={"device": "cpu"},
 )
 
 
