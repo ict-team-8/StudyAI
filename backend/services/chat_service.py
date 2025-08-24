@@ -13,6 +13,9 @@ from sentence_transformers import CrossEncoder
 from models.chat_domain import ChatSessionTable, QATurnTable
 from models.vector_domain import VectorIndexTable
 from services.ai_service_global import _EMBEDDINGS, llm, question_prompt  # 이미 있는 공용 모듈
+import asyncio # 추가
+from langchain.schema import Document  # 추가 
+
 
 # Colab 예제와 동일한 재정렬 모델(빠르고 가벼움)
 _reranker = CrossEncoder("BAAI/bge-reranker-base")
@@ -52,29 +55,9 @@ def _load_chroma(index_row: VectorIndexTable) -> Chroma:
         pass
     return vectordb
 
-# def _load_chroma(vindex: VectorIndexTable) -> Chroma:
-#     """RDB에 저장된 (collection_name, persist_dir)로 Chroma 연결"""
-#     return Chroma(
-#         collection_name=vindex.collection_name,
-#         persist_directory=vindex.persist_dir,
-#         embedding_function=_EMBEDDINGS,
-#     )
 
-# async def _get_vector_index(session: AsyncSession, user_id: uuid.UUID, subject_id: int) -> VectorIndexTable:
-#     """user+subject 조합의 인덱스 1행을 로드. 없으면 아직 업로드/인덱싱 전이므로 404."""
-#     q = await session.execute(
-#         select(VectorIndexTable).where(
-#             VectorIndexTable.user_id == user_id,
-#             VectorIndexTable.subject_id == subject_id
-#         )
-#     )
-#     row = q.scalar_one_or_none()
-#     if not row:
-#         raise HTTPException(404, "No vector index for this subject. Upload materials first.")
-#     return row
-
-def _format_source(doc) -> str:
-    """프론트에 바로 뿌릴 ‘근거 텍스트’로 정리 (문서명 + 페이지 or 스니펫)"""
+# ---------- helpers: Colab의 label & citation 추출을 서버용으로 그대로 ----------
+def _format_source(doc: Document) -> str:
     src = doc.metadata.get("source", "Unknown")
     page = doc.metadata.get("page")
     if page is not None:
@@ -82,22 +65,27 @@ def _format_source(doc) -> str:
     snippet = doc.page_content[:70].replace("\n", " ")
     return f"{src}: \"{snippet}...\""
 
-def _label_with_numbers(docs) -> tuple[str, dict[str, str]]:
-    """
-    컨텍스트 문단에 [1][2]… 라벨을 부여해 LLM이 그대로 인용하도록 함.
-    반환: (라벨이 붙은 컨텍스트 문자열, { "1": "문서명 p.x", ... })
-    """
-    parts, idx2src = [], {}
-    for i, d in enumerate(docs, start=1):
-        parts.append(f"[{i}] {d.page_content}")
-        idx2src[str(i)] = _format_source(d)
-    return "\n\n".join(parts), idx2src
+def _label_and_map_documents_multi(docs_lists: List[List[Document]]) -> tuple[str, List[Document], dict]:
+    all_docs: List[Document] = []
+    labeled_parts: List[str] = []
+    idx2src: dict[str, str] = {}
 
-def _extract_used_citations(answer: str, idx2src: dict[str, str]) -> list[str]:
-    """답변 내 [n]을 찾아 실제 근거 텍스트로 매핑"""
-    nums = sorted(set(re.findall(r"\[(\d+)\]", answer)))
+    counter = 1  # ✅ 항상 1부터 시작 (Colab 동일)
+    for docs in docs_lists:
+        for d in docs:
+            all_docs.append(d)
+            labeled_parts.append(f"[{counter}] {d.page_content}")
+            idx2src[str(counter)] = _format_source(d)
+            counter += 1
+
+    return "\n\n".join(labeled_parts), all_docs, idx2src
+
+def _filter_used_sources_list(answer_text: str, idx2src: dict[str, str]) -> list[str]:
+    nums = sorted(set(re.findall(r"\[(\d+)\]", answer_text)))
     return [f"[{n}] {idx2src[n]}" for n in nums if n in idx2src]
 
+
+# ---------- 핵심: Colab QA 스텝만 수행 ----------
 async def ask_and_store(
     db: AsyncSession,
     *, user_id: uuid.UUID, chat_session_id: int, subject_id: int, question: str
@@ -108,34 +96,48 @@ async def ask_and_store(
     3) 컨텍스트에 [n] 붙여 question_prompt로 LLM 호출
     4) 답변 + citations JSON을 qa_turns에 저장 후 반환
     """
+    # 0) 인덱스/Chroma 로드
     vindex = await _get_vector_index(db, user_id, subject_id)
     vectordb = _load_chroma(vindex)
 
+    # 1) retrieval (Colab: retriever.get_relevant_documents)
     retriever = vectordb.as_retriever(search_kwargs={"k": 8})
-    #cands = await retriever.abatch([question])  # async-friendly; 1개 질의
-    # docs = cands[0] if cands else []
-    # AFTER: 한 건 비동기 검색
-    docs = await retriever.ainvoke(question) 
+    # retriever.get_relevant_documents 는 sync → 스레드로 돌려 비동기화
+    loop = asyncio.get_running_loop()
+    docs: List[Document] = await loop.run_in_executor(
+        None, retriever.get_relevant_documents, question
+    )
     
-    # 재정렬
+    # 2) rerank (Colab : CrossEncoder.predict)
     pairs = [[question, d.page_content] for d in docs]
-    scores = _reranker.predict(pairs)
+    scores = await loop.run_in_executor(None, _reranker.predict, pairs)
     reranked = [d for d, _ in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)[:5]]
 
-    labeled_ctx, idx2src = _label_with_numbers(reranked)
+    # 3) 컨텍스트에 [n] 라벨 부여 (Colab과 동일)
+    labeled_ctx, _all_docs, idx2src = _label_and_map_documents_multi([reranked])
+    
+    # 4) LLM 호출 (Colab 동일 프롬포트)
     prompt = question_prompt.format(context=labeled_ctx, question=question)
-    resp = llm.invoke(prompt)  # LangChain LLM 인터페이스
+    resp = llm.invoke(prompt)  # langchain-google-genai ChatGoogleGenerativeAI
+    answer = (getattr(resp, "content", None) or str(resp)).strip()
 
     answer = (getattr(resp, "content", None) or str(resp)).strip()
-    used = _extract_used_citations(answer, idx2src)
+    
+    # 5) 답변 속 [n] → 인용 텍스트 매핑 (Colab 동일)
+    used_citations = _filter_used_sources_list(answer, idx2src)  # ["[1] 소스...", "[2] ..."]
 
+    if not used_citations and idx2src:
+        used = [f"[1] {idx2src['1']}"]
+        answer = answer + " [1]"
+
+    # 6) 저장
     turn = QATurnTable(
         chat_session_id=chat_session_id,
         user_id=user_id,
         question=question,
         answer=answer,
         has_answer=(answer.lower() != "no answer"),
-        citations=used
+        citations=used_citations,
     )
     db.add(turn)
     await db.flush()    # qa_turn_id 부여

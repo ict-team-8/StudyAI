@@ -49,15 +49,12 @@ else:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 # ---- 임베딩 (전역 1회만 로드) ----
-# --> 영어 적용 
-# _EMBEDDINGS = HuggingFaceEmbeddings(
-#     model_name="sentence-transformers/all-mpnet-base-v2",
-#     model_kwargs={'device': 'cpu'}
-# )
+
 _EMBEDDINGS = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-    model_kwargs={"device": "cpu"},
+    model_name="sentence-transformers/all-mpnet-base-v2",
+    model_kwargs={'device': 'cpu'}
 )
+
 
 
 # ---- LLM 인스턴스 (Gemini) ----
@@ -109,22 +106,24 @@ summary_prompt = PromptTemplate.from_template(
     """
 )
 
-# (선택) QA 프롬프트 – 필요 시 다른 서비스에서도 활용 가능
+# QA 프롬프트 – 필요 시 다른 서비스에서도 활용 가능
 question_prompt = PromptTemplate(
     input_variables=["context", "question"],
-    template="""
-    You are an expert research assistant. From the context below, extract the exact answer to the question.
-    If no exact answer exists in the context, reply 'No answer'.
-    Keep the answer concise and factual.
+    template=
+    """
+    From the given context, answer the question concisely.
+    Use inline citation markers like [1], , etc., to indicate which context passages support your answer.
+    **Important: Use ONLY the provided citation numbers shown in the context.** Do NOT invent or change citation numbers.
+    If no exact answer exists, reply 'No answer'.
 
-    Context:
+    Context with labels:
     {context}
 
     Question:
     {question}
 
-    Answer:
-    """,
+    Answer (with [n] markers):
+    """
 )
 
 # ==============================
