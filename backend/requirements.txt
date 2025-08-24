@@ -16,27 +16,24 @@ fastapi-users[sqlalchemy,oauth] # 사용자 관리/로그인/OAuth (구글, 깃�
 # 추가 기능
 requests # 외부 API 호출할 때 사용. 예: 외부 서버에 POST 요청, 필요할 때만
 beautifulsoup4 # HTML 파싱/스크래핑, 웹페이지 데이터 크롤링할 때 적격
-PyPDF2 # PDF 업로드 분석 기능 시 필요
+pypdf # PyPDFLeader 내부 의존
+# kss -> 안씀
+tiktoken
 
-# AI/RAG (민지 기능 기준)
+
+# --- RAG / LLM ---
+# AI summary, 요약 관련된 패키지
 google-generativeai
 langchain
 langchain-google-genai
 langchain-community
 langchain-huggingface
 chromadb
-# faiss-cpu -> 일단 빌드 실패라서 뺐음
 rank-bm25
 pypdf
 tiktoken
 kss
 matplotlib
-
-# === Google Generative AI SDK ===
-google-generativeai
-
-# === BM25 점수화 (선택: 사용 시) ===
-rank-bm25
 
 # === 기타 ===
 numpy   # rank-bm25 내부에서 사용
