@@ -213,8 +213,8 @@ async def handle_upload(
                     "user_id": str(user_id), # string으로 저장 권장
                     "subject_id": subject_id,
                     "document_id": doc.document_id,
-                    "ord": i, # 문서 내 청크 순서
-                    "source": source_type.lower(), # 'pdf' or 'text'
+                    "source": title,        # ← 파일명/제목으로
+                    "page": i + 1,          # ← 페이지 느낌으로라도 넣기
                 },
             )
         )
