@@ -8,6 +8,7 @@ import { useAuth } from "../auth";
 import api from "../api";
 import SubjectModal from "../components/SubjectModal";
 import Tabs from "../components/Tabs";
+import { IconDot, IconUploadBadge } from "../components/icons";
 
 type Subject = { subject_id: number; name: string };
 
@@ -65,11 +66,11 @@ return (
   <div className="sa-container" style={{ marginTop: 12 }}>
     {/* 업로드 카드 */}
     <section className="sa-card">
-      <div className="sa-card__header">
-        <div className="sa-card__title">
-          <span className="sa-title-icon" />
-          학습 자료 업로드
-        </div>
+        <div className="sa-card__header">
+            <div className="sa-card__title" style={{gap:10}}>
+            <IconDot />
+            학습 자료 업로드
+            </div>
         <div className="sa-card__actions">
           <button
             className="sa-btn ghost"
@@ -103,8 +104,9 @@ return (
         {!file ? (
           // 파일 미선택 상태
           <div className="sa-dropzone__inner">
-            <div className="sa-upload-badge">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <div className="sa-upload-badge--svg">
+                <IconUploadBadge/>
+              {/* <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <path d="M12 16V8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
                 <path
                   d="M8.5 11.5L12 8l3.5 3.5"
@@ -113,8 +115,9 @@ return (
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-              </svg>
+              </svg> */}
             </div>
+            
             <div className="sa-dropzone__title">파일을 여기엔 드래그하거나</div>
             <div className="sa-dropzone__subtitle">
               아래 버튼을 클릭하여 파일을 선택하세요

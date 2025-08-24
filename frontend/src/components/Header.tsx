@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../auth";
 import LoginModal from "./LoginModal";
-
+import { IconStudyAI } from "./icons";   // ⬅ 추가
 
 export default function Header(){
   const { user, logout } = useAuth();
@@ -12,10 +12,9 @@ export default function Header(){
   return (
     <header className="sa-header">
       <div className="sa-header__left">
-        {/* 로고(아이콘 + 텍스트) */}
         <div className="sa-logo">
-          <div className="sa-logo__icon">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="10" fill="#6f5bff"/><path d="M8 12l2.2 2.2L16 8.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div className="sa-logo__icon--big">
+            <IconStudyAI />
           </div>
           <div className="sa-logo__text">
             <div className="sa-logo__title">StudyAI</div>

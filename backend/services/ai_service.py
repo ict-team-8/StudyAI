@@ -7,7 +7,6 @@ from PyPDF2 import PdfReader
 
 from typing import List
 from langchain_google_genai import ChatGoogleGenerativeAI
-from .quiz_core import QuizMaterialRegistry, QuizGenerator, QuizSet
 
 def clean_text(t: str) -> str:
     t = BeautifulSoup(t, "html.parser").get_text(" ")
@@ -40,25 +39,3 @@ def summarize_text(text: str, question: str | None = None) -> str:
         prompt = f"시험 대비 요약: 핵심개념/함정/3줄요약\n텍스트:\n{text[:120000]}"
     resp = model.generate_content(prompt)
     return resp.text.strip()
-
-# 실제 문제 생성 호출 함수
-def generate_quiz(
-    material_name: str,
-    qtype: str,
-    difficulty: str,
-    num_questions: int
-) -> QuizSet:
-    # 레지스트리 초기화
-    registry = QuizMaterialRegistry()
-    registry.refresh_from_global()  # MATERIALS_PLAIN_BY_NAME 기반
-    
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")  # 혹은 이미 띄워둔 llm을 주입
-    
-    generator = QuizGenerator(registry=registry, llm=llm)
-    quiz = generator.generate(
-        material_name=material_name,
-        user_type=qtype,
-        user_difficulty=difficulty,
-        n_questions=num_questions
-    )
-    return quiz

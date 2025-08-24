@@ -35,5 +35,8 @@ tiktoken
 kss
 matplotlib
 
+# 문제 생성 관련
+pycryptodome>=3.20.0
+
 # === 기타 ===
 numpy   # rank-bm25 내부에서 사용

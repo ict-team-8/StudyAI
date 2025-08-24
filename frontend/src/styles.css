@@ -189,3 +189,35 @@ body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, R
   padding: 12px 14px 14px;
   border-top: 1px solid #f1f5ff;
 }
+
+/** 스타일 개선 추가 **/
+/* ── 로고 큰 아이콘 컨테이너 (정사각 + 쉐도우는 SVG 자체 그라데이션) ── */
+.sa-logo__icon--big { width:40px; height:40px; display:grid; place-items:center; }
+
+/* ── 탭 바: 레퍼런스처럼 하얀 캡슐 + 연한 그림자 + 섬세한 보더 ── */
+.sa-tabs{
+  display:flex; gap:10px; padding:6px;
+  background:#fff; border:1px solid #eef2ff; border-radius:999px;
+  box-shadow:0 10px 26px rgba(17,24,39,.06);
+  width:max-content;
+}
+.sa-tab{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 14px; border-radius:999px; font-weight:700;
+  color:#475569; background:transparent; border:0; cursor:pointer;
+}
+.sa-tab__icon{ opacity:.9 }
+.sa-tab.active{
+  background:linear-gradient(180deg,#7c6cff,#5f49ff);
+  color:#fff; box-shadow:0 10px 24px rgba(95,73,255,.35);
+}
+.sa-tab.active .sa-tab__icon{ color:#fff }
+
+/* ── 드롭존 중앙 원형 배지(SVG) ── */
+.sa-upload-badge--svg { filter: drop-shadow(0 12px 28px rgba(111,91,255,.35)); }
+
+/* 기존 .sa-btn.primary는 동일하지만 그라데이션 더 또렷하게 */
+.sa-btn.primary{
+  background:linear-gradient(180deg,#7c6cff,#5f49ff);
+  box-shadow:0 12px 28px rgba(95,73,255,.38);
+}

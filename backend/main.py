@@ -29,13 +29,16 @@ from routers.auth import router as auth_router
 from routers.subjects import router as subject_router
 from routers.documents import router as document_router
 from routers.summaries import router as summary_router
+from routers.chat import router as chat_router
+from routers.quiz import router as quiz_router
 
 app.include_router(ai_router, prefix="/api/ai", tags=["ai"])
 app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(subject_router, prefix="/api", tags=["subject"])
 app.include_router(document_router, prefix="/api", tags=["document"])
 app.include_router(summary_router, prefix="/api", tags=["summaries"])
-
+app.include_router(chat_router, prefix="/api", tags=["chat"])
+app.include_router(quiz_router, prefix="/api/quiz",tags=["quiz"] )
 
 
 # swagger ui에만 영향가는 코드 (신경쓰지 마세요)

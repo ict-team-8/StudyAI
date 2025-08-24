@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from services.ai_service import summarize_text, load_text_from_url, load_text_from_pdf_bytes, clean_text, generate_quiz
+from services.ai_service import summarize_text, load_text_from_url, load_text_from_pdf_bytes, clean_text
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -51,26 +51,3 @@ async def ai_summary(
         # 내부 에러는 500
         raise HTTPException(500, f"AI 처리 실패: {e}")
     
-
-# 요청 바디 스키마
-class QuizRequest(BaseModel):
-    material_name: str
-    qtype: str
-    difficulty: str
-    num_questions: int
-
-# 응답 스키마는 QuizSet을 그대로 써도 되거나, dict로 변환
-@router.post("/generate")
-def generate_quiz_api(req: QuizRequest):
-    try:
-        quiz = generate_quiz(
-            material_name=req.material_name,
-            qtype=req.qtype,
-            difficulty=req.difficulty,
-            num_questions=req.num_questions,
-        )
-        return quiz.model_dump()
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"잘못된 요청: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"서버 오류: {e}")
