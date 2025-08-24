@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from services.ai_service import summarize_text, load_text_from_url, load_text_from_pdf_bytes, clean_text
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -49,3 +50,4 @@ async def ai_summary(
     except Exception as e:
         # 내부 에러는 500
         raise HTTPException(500, f"AI 처리 실패: {e}")
+    

@@ -5,8 +5,8 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
 
-
-
+from typing import List
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 def clean_text(t: str) -> str:
     t = BeautifulSoup(t, "html.parser").get_text(" ")

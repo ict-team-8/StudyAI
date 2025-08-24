@@ -1,0 +1,261 @@
+* 문제 생성 카드 */
+.gq-card {
+  max-width: 32rem;
+  margin: 0 auto;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.gq-card__header {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem;
+}
+
+.gq-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gq-card__title-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.875rem;
+}
+
+.gq-card__title-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.gq-card__content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 필드 공통 스타일 */
+.gq-field__label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+/* 선택 버튼 */
+.gq-select-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background-color: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.gq-select-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.gq-select-btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gq-select-btn__text--selected {
+  color: #1f2937;
+}
+
+.gq-select-btn__text--placeholder {
+  color: #6b7280;
+}
+
+.gq-select-btn__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #9ca3af;
+}
+
+/* 체크박스 그룹 */
+.gq-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gq-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.gq-checkbox__input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #3b82f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.gq-checkbox__text {
+  color: #374151;
+}
+
+/* 드롭다운 */
+.gq-dropdown {
+  position: relative;
+}
+
+.gq-dropdown__menu {
+  position: absolute;
+  z-index: 10;
+  width: 100%;
+  margin-top: 0.25rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.gq-dropdown__menu--scrollable {
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.gq-dropdown__item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.gq-dropdown__item:hover {
+  background-color: #f9fafb;
+}
+
+.gq-dropdown__item-text {
+  color: #374151;
+}
+
+/* 난이도 선택 */
+.gq-difficulty-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gq-difficulty-indicator {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.gq-difficulty-indicator--easy {
+  background-color: #10b981;
+}
+
+.gq-difficulty-indicator--medium {
+  background-color: #f59e0b;
+}
+
+.gq-difficulty-indicator--hard {
+  background-color: #ef4444;
+}
+
+/* 슬라이더 */
+.gq-slider {
+  position: relative;
+}
+
+.gq-slider__input {
+  width: 100%;
+  height: 0.5rem;
+  background: #e5e7eb;
+  border-radius: 0.5rem;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.gq-slider__input::-webkit-slider-thumb {
+  appearance: none;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.gq-slider__input::-moz-range-thumb {
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.gq-slider__labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.gq-slider__label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* 제출 버튼 */
+.gq-submit {
+  padding-top: 1rem;
+}
+
+.gq-submit__btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.gq-submit__btn--active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.gq-submit__btn--active:hover {
+  background-color: #2563eb;
+}
+
+.gq-submit__btn--disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+}

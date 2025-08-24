@@ -50,6 +50,8 @@ body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, R
 .sa-title-icon{width:28px; height:28px; border-radius:999px; background:linear-gradient(180deg,#8a7bff,#6f5bff); display:inline-block}
 .sa-card__actions{display:flex; gap:8px}
 .sa-card__desc{color:var(--sub); margin:6px 0 14px}
+.gq-card__actions{display: flex 1 0 0; gap: 8px;}
+.gq_card__select{display : flex}
 
 /* 드롭존 */
 .sa-dropzone{border:2px dashed #d9ddec; border-radius:16px; min-height:280px; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg,#fbfbff,#ffffff)}
