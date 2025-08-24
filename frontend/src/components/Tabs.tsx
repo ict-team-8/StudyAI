@@ -1,34 +1,34 @@
-// 탭 네비게이션
-// 설명: 상단 라운드 탭바(자료 업로드 활성)
-// ===============================
-// 탭 이름 타입(필요시 라우팅으로 확장 가능)
+import React from "react";
+import {
+  IconTabUpload, IconTabQA, IconTabGen, IconTabSolve, IconTabAnalytics
+} from "./icons";
+
 export type TabKey = "upload" | "qa" | "gen" | "solve" | "analytics";
 
 export default function Tabs({
-  active,            // 현재 활성 탭
-  onSelect,          // 탭 클릭 시 상위로 알림
-}: {
-  active: TabKey;
-  onSelect: (key: TabKey) => void;
-}) {
-  // 공통 렌더러: active 여부에 따라 클래스 토글
-  const Item = ({ k, label }: { k: TabKey; label: string }) => (
+  active, onSelect,
+}: { active: TabKey; onSelect: (key: TabKey) => void; }) {
+
+  const Item = ({ k, label, Icon }:{
+    k: TabKey; label: string; Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  }) => (
     <button
       type="button"
       className={`sa-tab ${active === k ? "active" : ""}`}
-      onClick={() => onSelect(k)}       // 👉 클릭 시 상위에 선택 이벤트 전달
+      onClick={() => onSelect(k)}
     >
-      {label}
+      <Icon className="sa-tab__icon" />
+      <span>{label}</span>
     </button>
   );
 
   return (
     <nav className="sa-tabs" role="tablist" aria-label="StudyAI Tabs">
-      <Item k="upload"    label="📤 자료 업로드" />
-      <Item k="qa"        label="🧠 요약 & Q&A" />
-      <Item k="gen"       label="❓ 문제 생성" />
-      <Item k="solve"     label="📘 문제 풀이" />
-      <Item k="analytics" label="📊 학습 분석" />
+      <Item k="upload"    label="자료 업로드" Icon={IconTabUpload}/>
+      <Item k="qa"        label="요약 & Q&A" Icon={IconTabQA}/>
+      <Item k="gen"       label="문제 생성"  Icon={IconTabGen}/>
+      <Item k="solve"     label="문제 풀이"  Icon={IconTabSolve}/>
+      <Item k="analytics" label="학습 분석"  Icon={IconTabAnalytics}/>
     </nav>
   );
 }
