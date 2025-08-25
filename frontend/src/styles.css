@@ -237,17 +237,38 @@ body{
 .sa-chat__composer{ display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:12px }
 .sa-chat__input{ border:1px solid var(--ring); border-radius:10px; padding:10px 12px }
 .sa-chat__send{ width:40px; display:grid; place-items:center; padding:0; border-radius:10px }
+/* 입력창 주변 간격 넉넉하게 */
+.sa-chat__composer--roomy { margin: 14px 0 18px; }
+.sa-chat--spacious { gap:14px; }
 
 .sa-chat{ display:grid; gap:10px }
 .sa-chat__turn{ display:grid; gap:6px }
 .sa-bubble{
-  max-width:85%; padding:10px 12px; border-radius:14px; line-height:1.6;
+  max-width: 85%;
+  padding:10px 12px; border-radius:14px; line-height:1.6;
   box-shadow:0 6px 18px rgba(17,24,39,.06);
 }
-.sa-bubble--me{ justify-self:end; background:#4f46e5; color:#fff; border-top-right-radius:6px }
-.sa-bubble--ai{ justify-self:start; background:#ffffff; border:1px solid #eef2ff; border-top-left-radius:6px }
-.sa-bubble__text{ white-space:pre-wrap }
-
+.sa-bubble--me{ background:#4f46e5; color:#fff; border-top-right-radius:6px; }
+.sa-bubble--ai{ background:#ffffff; border:1px solid #eef2ff; border-top-left-radius:6px; }
+.sa-bubble__text{ white-space:pre-wrap; }
 .sa-cites{ margin-top:8px; padding-top:8px; border-top:1px dashed #e8eafc }
 .sa-cites__title{ font-size:12px; font-weight:800; color:#64748b; margin-bottom:4px }
 .sa-cites__list{ margin:0; padding-left:18px; color:#4b5563; font-size:13px }
+
+/* 말풍선 행: 좌/우 정렬 레이아웃 */
+.sa-msg {
+  display:flex; align-items:flex-end; gap:8px; max-width:100%;
+}
+.sa-msg--me { justify-content:flex-end; }
+.sa-msg--ai { justify-content:flex-start; }
+
+/* 아바타(원형 배지) */
+.sa-avatar{
+  flex:0 0 auto; width:28px; height:28px; border-radius:999px;
+  display:grid; place-items:center; color:#fff;
+  box-shadow:0 6px 16px rgba(17,24,39,.10);
+}
+.sa-avatar--me{ background:#4f46e5; }
+.sa-avatar--ai{
+  background: radial-gradient(28px 28px at 50% 35%, #45d48a 0%, #12b56a 70%);
+}
