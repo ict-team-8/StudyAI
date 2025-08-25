@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import SubjectModal from '../components/SubjectModal';
 import api, { getAuthToken } from '../api';
 import './GenerateQuiz.css';
-import QuizPlayer from './Quizplayer';
+import QuizPlayer from './QuizPlayer.tsx';
 
 type Subject = { subject_id: number; name: string };
 type QuestionType = '객관식' | '단답형' | '주관식';
