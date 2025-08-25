@@ -1,296 +1,253 @@
-
-/*
-설명: 레퍼런스 스크린 룩앤드필(그라데이션/카드/점선/버튼 등)
-*/
-:root{ --ink:#0f172a; --sub:#6b7280; --ring:#e2e8f0; --card:#fff; --indigo:#6f5bff; --shadow: 0 10px 30px rgba(17,24,39,.08); }
-*{box-sizing:border-box}
-html,body,#root{height:100%}
-body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Helvetica, Arial; color:var(--ink); background:#fff}
-
-/* 레이아웃 */
-.sa-root{position:relative; min-height:100vh}
-.sa-top-bg{position:absolute; inset:0 0 auto 0; height:220px; background:radial-gradient(1200px 220px at 50% -40px, #efeaff 0%, #ffffff 60%); z-index:0}
-.sa-main{position:relative; z-index:1; max-width:1160px; margin:0 auto; padding:32px 24px 80px}
-
-/* 헤더 */
-.sa-header{position:relative; z-index:2; max-width:1160px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between}
-.sa-logo{display:flex; align-items:center; gap:12px}
-.sa-logo__icon{display:grid; place-items:center; width:40px; height:40px; border-radius:12px; background:linear-gradient(180deg, #8a7bff, #6f5bff); box-shadow:0 6px 18px rgba(111,91,255,.35)}
-.sa-logo__text{display:flex; flex-direction:column}
-.sa-logo__title{font-weight:800; font-size:20px}
-.sa-logo__subtitle{font-size:12px; color:var(--sub)}
-.sa-header__right{display:flex; align-items:center; gap:12px}
-.sa-badge{padding:6px 10px; font-size:12px; border-radius:999px; background:#eef2ff; color:#4f46e5}
-.sa-user{display:flex; align-items:center; gap:8px}
-.sa-user__email{font-size:14px; color:#475569}
-
-/* 버튼 */
-.sa-btn{appearance:none; border:0; background:#111827; color:#fff; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer}
-.sa-btn.primary{background:linear-gradient(180deg,#7c6cff,#5f49ff); box-shadow:0 10px 24px rgba(95,73,255,.35)}
-.sa-btn.ghost{background:transparent; color:#374151; border:1px solid var(--ring)}
-.sa-btn:disabled{opacity:.6; cursor:not-allowed}
-
-/* 히어로 & 탭 */
-.sa-hero__title{font-size:40px; font-weight:800; letter-spacing:-.5px; margin:24px 0 8px}
-.sa-hero__subtitle{color:var(--sub); margin:0 0 20px}
-.sa-tabs{display:flex; gap:12px; background:#fff; padding:6px; border-radius:999px; box-shadow:var(--shadow); width:max-content}
-.sa-tab{
-    padding:10px 18px; border-radius:999px; color:#374151; text-decoration:none; font-weight:600;
-    background: transparent; border: 0; cursor: pointer; }
-.sa-tab:focus-visible {
-  outline: 2px solid #a5b4fc; /* ← 키보드 포커스 가시성 */
-  outline-offset: 2px;
+/* =========================================================
+   Base / Tokens
+========================================================= */
+:root{
+  --ink:#0f172a; --sub:#6b7280; --ring:#e2e8f0; --card:#fff;
+  --indigo:#6f5bff; --shadow:0 10px 30px rgba(17,24,39,.08);
 }
-.sa-tab.active{background:#111827; color:#fff}
-
-/* 카드 */
-.sa-card{background:var(--card); border-radius:16px; box-shadow:var(--shadow); border:1px solid #eef2ff; padding:24px; margin-top:24px}
-.sa-card__header{display:flex; align-items:center; justify-content:space-between; gap:12px}
-.sa-card__title{display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px}
-.sa-title-icon{width:28px; height:28px; border-radius:999px; background:linear-gradient(180deg,#8a7bff,#6f5bff); display:inline-block}
-.sa-card__actions{display:flex; gap:8px}
-.sa-card__desc{color:var(--sub); margin:6px 0 14px}
-.gq-card__actions{display: flex 1 0 0; gap: 8px;}
-.gq_card__select{display : flex}
-
-/* 드롭존 */
-.sa-dropzone{border:2px dashed #d9ddec; border-radius:16px; min-height:280px; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg,#fbfbff,#ffffff)}
-.sa-dropzone.dragover{background:#f7f8ff; border-color:#c4c8f5}
-.sa-dropzone__inner{display:grid; justify-items:center; gap:10px; padding:36px}
-.sa-upload-badge{width:64px; height:64px; border-radius:999px; display:grid; place-items:center; background:radial-gradient(60px 60px at 50% 35%, #9a8cff 0%, #6f5bff 70%); color:#fff; box-shadow:0 12px 28px rgba(111,91,255,.35)}
-.sa-dropzone__title{font-weight:800; font-size:18px}
-.sa-dropzone__subtitle{color:var(--sub); font-size:14px}
-.sa-dropzone__meta{display:flex; gap:18px; color:var(--sub); font-size:13px; margin-top:6px}
-
-/* 보조 입력/풋터 */
-.sa-or{margin:18px 0 8px; color:var(--sub)}
-.sa-textarea{width:100%; border:1px solid var(--ring); border-radius:12px; padding:12px; resize:vertical; min-height:120px}
-.sa-card__footer{margin-top:14px; display:flex; justify-content:flex-end}
-.sa-result{white-space:pre-wrap; background:#0b1020; color:#e5e7eb; padding:16px; border-radius:12px; margin-top:14px}
-
-/* 모달 */
-.sa-modal__backdrop{position:fixed; inset:0; background:rgba(0,0,0,.35); display:grid; place-items:center; z-index:50}
-.sa-modal{background:#fff; border-radius:16px; padding:18px 18px 16px; box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid #eef2ff}
-.sa-modal__title{font-weight:800; font-size:18px; margin-bottom:10px}
-.sa-modal__body{display:grid; gap:10px}
-.sa-modal__footer, .sa-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:10px}
-.sa-field{display:grid; gap:6px}
-.sa-field > label{font-size:13px; color:var(--sub)}
-.sa-field > input{border:1px solid var(--ring); padding:10px 12px; border-radius:10px}
-.sa-error{color:#ef4444; font-size:13px}
-.sa-list{border:1px solid var(--ring); border-radius:12px; max-height:260px; overflow:auto}
-.sa-list__item{padding:10px 12px; border-bottom:1px solid #eef2ff}
-.sa-list__item:last-child{border-bottom:none}
-.sa-list__item.selectable{cursor:pointer}
-.sa-list__item.selectable:hover{background:#f7f7ff}
-.sa-list__item.create{color:#5f49ff; font-weight:700; cursor:pointer}
-
-/* PDF 파일 업로드 이후 상태변화 */
-/* 파일 선택 시 드롭존 강조 */
-.sa-dropzone.filled {
-  border-color: #c9cffc;
-  background: linear-gradient(180deg, #f9f9ff, #ffffff);
+*{ box-sizing:border-box }
+html,body,#root{ height:100% }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Helvetica, Arial;
+  color:var(--ink); background:#fff;
 }
 
-/* 선택된 파일 정보 칩 */
-.sa-filechip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--ring);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: var(--shadow);
-  margin-bottom: 12px;
+/* =========================================================
+   Layout
+========================================================= */
+.sa-root{ position:relative; min-height:100vh }
+.sa-top-bg{
+  position:absolute; inset:0 0 auto 0; height:220px;
+  background:radial-gradient(1200px 220px at 50% -40px, #efeaff 0%, #ffffff 60%);
+  z-index:0;
 }
-.sa-filechip__icon { font-size: 16px; }
-.sa-filechip__name {
-  max-width: 44ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sa-filechip__size { color: var(--sub); font-size: 13px; }
+.sa-main{ position:relative; z-index:1; max-width:1160px; margin:0 auto; padding:32px 24px 80px }
 
-/* 준비됨 배지 (텍스트/파일 모두 재사용) */
-.sa-badge.ready {
-  background: #eef2ff;
-  color: #4f46e5;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+/* =========================================================
+   Header
+========================================================= */
+.sa-header{
+  position:relative; z-index:2; max-width:1160px; margin:0 auto;
+  padding:16px 24px; display:flex; align-items:center; justify-content:space-between;
 }
-
-/* 이미지 미리보기 썸네일 */
-.sa-preview {
-  width: 160px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid var(--ring);
-  box-shadow: var(--shadow);
-  margin: 8px 0 6px;
+.sa-logo{ display:flex; align-items:center; gap:12px }
+.sa-logo__icon{
+  display:grid; place-items:center; width:40px; height:40px; border-radius:12px;
+  background:linear-gradient(180deg,#8a7bff,#6f5bff); box-shadow:0 6px 18px rgba(111,91,255,.35);
+}
+.sa-logo__icon--big{ width:40px; height:40px; display:grid; place-items:center }
+.sa-logo__text{ display:flex; flex-direction:column }
+.sa-logo__title{ font-weight:800; font-size:20px }
+.sa-logo__subtitle{ font-size:12px; color:var(--sub) }
+.sa-header__right{ display:flex; align-items:center; gap:12px }
+.sa-user{ display:flex; align-items:center; gap:8px }
+.sa-user__email{ font-size:14px; color:#475569 }
+.sa-badge{
+  padding:6px 10px; font-size:12px; border-radius:999px;
+  background:#eef2ff; color:#4f46e5;
 }
 
-/* 선택 상태 액션 버튼 정렬 */
-.sa-selected {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  padding: 28px 12px;
-  text-align: center;
+/* =========================================================
+   Buttons
+========================================================= */
+.sa-btn{
+  appearance:none; border:0; background:#111827; color:#fff;
+  padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer;
 }
-.sa-selected__actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
+.sa-btn.primary{
+  background:linear-gradient(180deg,#7c6cff,#5f49ff);
+  box-shadow:0 12px 28px rgba(95,73,255,.38);
 }
-
-/* ───── SummaryQA 아코디언 ───── */
-.sa-accordion { display: grid; gap: 10px; }
-
-.sa-acc {
-  border: 1px solid #eef2ff;
-  border-radius: 12px;
-  background: #fff;
+.sa-btn.ghost{ background:transparent; color:#374151; border:1px solid var(--ring) }
+.sa-btn:disabled{ opacity:.6; cursor:not-allowed }
+.sa-btn--gradient{
+  background:linear-gradient(180deg,#8a7bff,#6f5bff);
+  color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:700;
+  box-shadow:0 12px 28px rgba(95,73,255,.30); display:inline-flex; gap:8px; align-items:center;
 }
 
-.sa-acc__header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 14px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--ink);
-  border-radius: 12px;
-}
+/* =========================================================
+   Hero & Tabs
+========================================================= */
+.sa-hero__title{ font-size:40px; font-weight:800; letter-spacing:-.5px; margin:24px 0 8px }
+.sa-hero__subtitle{ color:var(--sub); margin:0 0 20px }
 
-.sa-acc__header:focus-visible {
-  outline: 2px solid #a5b4fc;
-  outline-offset: 2px;
-}
-
-.sa-acc__chev {
-  transition: transform .18s ease;
-}
-
-.sa-acc.open .sa-acc__chev {
-  transform: rotate(180deg);
-}
-
-.sa-acc__body {
-  padding: 12px 14px 14px;
-  border-top: 1px solid #f1f5ff;
-}
-
-/** 스타일 개선 추가 **/
-/* ── 로고 큰 아이콘 컨테이너 (정사각 + 쉐도우는 SVG 자체 그라데이션) ── */
-.sa-logo__icon--big { width:40px; height:40px; display:grid; place-items:center; }
-
-/* ── 탭 바: 레퍼런스처럼 하얀 캡슐 + 연한 그림자 + 섬세한 보더 ── */
 .sa-tabs{
-  display:flex; gap:10px; padding:6px;
-  background:#fff; border:1px solid #eef2ff; border-radius:999px;
-  box-shadow:0 10px 26px rgba(17,24,39,.06);
-  width:max-content;
+  display:flex; gap:10px; padding:6px; background:#fff;
+  border:1px solid #eef2ff; border-radius:999px;
+  box-shadow:0 10px 26px rgba(17,24,39,.06); width:max-content;
 }
 .sa-tab{
   display:inline-flex; align-items:center; gap:8px;
   padding:10px 14px; border-radius:999px; font-weight:700;
   color:#475569; background:transparent; border:0; cursor:pointer;
 }
-.sa-tab__icon{ opacity:.9 }
+.sa-tab:focus-visible{ outline:2px solid #a5b4fc; outline-offset:2px }
 .sa-tab.active{
   background:linear-gradient(180deg,#7c6cff,#5f49ff);
   color:#fff; box-shadow:0 10px 24px rgba(95,73,255,.35);
 }
-.sa-tab.active .sa-tab__icon{ color:#fff }
 
-/* ── 드롭존 중앙 원형 배지(SVG) ── */
-.sa-upload-badge--svg { filter: drop-shadow(0 12px 28px rgba(111,91,255,.35)); }
-
-/* 기존 .sa-btn.primary는 동일하지만 그라데이션 더 또렷하게 */
-.sa-btn.primary{
-  background:linear-gradient(180deg,#7c6cff,#5f49ff);
-  box-shadow:0 12px 28px rgba(95,73,255,.38);
+/* =========================================================
+   Cards
+========================================================= */
+.sa-card{
+  background:var(--card); border-radius:16px; box-shadow:var(--shadow);
+  border:1px solid #eef2ff; padding:24px; margin-top:24px;
 }
+.sa-card__header{ display:flex; align-items:center; justify-content:space-between; gap:12px }
+.sa-card__header.nowrap{ flex-wrap:nowrap }
+@media (max-width:980px){ .sa-card__header.nowrap{ flex-wrap:wrap } }
+.sa-card__title{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; white-space:nowrap }
+.sa-card__actions{ display:flex; gap:8px }
+.sa-card__desc{ color:var(--sub); margin:6px 0 14px }
 
-/* 0825 디자인 추가 수정 -> 메인페이지 아이콘 관련 */
-/* 섹션 타이틀 왼쪽 그라데이션 배지 */
+/* 섹션 타이틀 원형 배지 + 변형 */
 .sa-title-badge{
-  width:28px; height:28px;
-  border-radius:999px;
-  display:inline-grid; place-items:center;
-  background: linear-gradient(180deg,#8a7bff,#6f5bff);
-  box-shadow: 0 8px 20px rgba(111,91,255,.32);
+  width:28px; height:28px; border-radius:999px; display:inline-grid; place-items:center;
+  background:linear-gradient(180deg,#8a7bff,#6f5bff);
+  box-shadow:0 8px 20px rgba(111,91,255,.32);
 }
-.sa-card__title .sa-title-badge svg{
-  width:16px; height:16px;
-  stroke: #fff;
-  stroke-width: 2.2;
-}
-
-/* QA랑 summary CSS 개선 ver*/
-/* 한 줄 유지(너무 좁아지면만 줄바꿈) */
-.sa-card--tight .sa-card__header { gap: 12px; }
-.sa-card__header.nowrap { flex-wrap: nowrap; }
-@media (max-width: 980px) { .sa-card__header.nowrap { flex-wrap: wrap; } }
-
-/* 보라/초록 원형 배지 아이콘 */
-.sa-title-badge{
-  width:28px;height:28px;border-radius:999px;display:inline-grid;place-items:center;
-  background: linear-gradient(180deg,#8a7bff,#6f5bff);
-  box-shadow: 0 8px 20px rgba(111,91,255,.32);
-}
-.sa-title-badge svg{ width:16px;height:16px; stroke:#fff; stroke-width:2.2; }
+.sa-title-badge svg{ width:16px; height:16px; stroke:#fff; stroke-width:2.2 }
 .sa-title-badge--green{
   background: radial-gradient(28px 28px at 50% 35%, #45d48a 0%, #12b56a 70%);
   box-shadow: 0 8px 20px rgba(16,185,129,.28);
 }
 
-/* 요약 “전체 요약” 필 pill */
-.sa-pill{
-  display:inline-flex; align-items:center; gap:8px; padding:8px 10px;
-  border:1px solid #e6e9ff; border-radius:999px; background:#fff; box-shadow:0 6px 14px rgba(17,24,39,.05);
-}
-.sa-pill__icon{ width:16px;height:16px; color:#6b72ff; }
-.sa-pill__input{
-  border:0; outline:none; min-width:160px; font-weight:600; color:#111827; background:transparent;
-}
-.sa-pill__input::placeholder{ color:#94a3b8; font-weight:600; }
-.sa-pill__chev{ width:16px;height:16px; color:#9aa2ff; }
-
-/* 그라데이션 버튼 (통일) */
-.sa-btn--gradient{
-  background: linear-gradient(180deg,#8a7bff,#6f5bff);
-  color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:700;
-  box-shadow: 0 12px 28px rgba(95,73,255,.30); display:inline-flex; gap:8px; align-items:center;
+/* 헤더 우측 컨트롤(한 줄 유지) */
+.sa-actions{
+  display:flex; align-items:center; gap:10px;
+  flex:1; justify-content:flex-end; min-width:0;
 }
 
-/* 입력창 + 전송 버튼 */
-.sa-chat__composer{ display:grid; grid-template-columns: 1fr auto; gap:8px; margin-bottom:12px; }
-.sa-chat__input{ border:1px solid var(--ring); border-radius:10px; padding:10px 12px; }
-.sa-chat__send{ width:40px; display:grid; place-items:center; padding:0; border-radius:10px; }
+/* =========================================================
+   Inputs (새 요약 프롬프트 등)
+========================================================= */
+.sa-input{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 12px; border:1px solid #e6e9ff; border-radius:12px;
+  background:#fff; box-shadow:0 6px 14px rgba(17,24,39,.05);
+  flex:1; min-width:180px; max-width:460px;
+}
+.sa-input:focus-within{ border-color:#c9ceff; box-shadow:0 0 0 4px rgba(99,102,241,.12) }
+.sa-input__icon{ width:16px; height:16px; color:#6b72ff }
+.sa-input__field{
+  border:0; outline:none; width:100%; min-width:0; background:transparent;
+  font-weight:600; color:#111827;
+}
+.sa-input__field::placeholder{ color:#94a3b8; font-weight:600 }
 
-/* 채팅 버블 */
-.sa-chat{ display:grid; gap:10px; }
-.sa-chat__turn{ display:grid; gap:6px; }
+/* (호환용) 이전 pill 스타일이 남아있는 화면 대비 */
+.sa-pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px;
+  border:1px solid #e6e9ff; border-radius:999px; background:#fff; box-shadow:0 6px 14px rgba(17,24,39,.05) }
+.sa-pill__icon{ width:16px; height:16px; color:#6b72ff }
+.sa-pill__input{ border:0; outline:none; min-width:160px; font-weight:600; color:#111827; background:transparent }
+.sa-pill__input::placeholder{ color:#94a3b8; font-weight:600 }
+
+/* =========================================================
+   Dropzone / Upload
+========================================================= */
+.sa-dropzone{
+  border:2px dashed #d9ddec; border-radius:16px; min-height:280px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(180deg,#fbfbff,#ffffff);
+}
+.sa-dropzone.dragover{ background:#f7f8ff; border-color:#c4c8f5 }
+.sa-dropzone.filled{ border-color:#c9cffc; background:linear-gradient(180deg,#f9f9ff,#ffffff) }
+.sa-dropzone__inner{ display:grid; justify-items:center; gap:10px; padding:36px }
+.sa-upload-badge{
+  width:64px; height:64px; border-radius:999px; display:grid; place-items:center;
+  background:radial-gradient(60px 60px at 50% 35%, #9a8cff 0%, #6f5bff 70%);
+  color:#fff; box-shadow:0 12px 28px rgba(111,91,255,.35);
+}
+.sa-upload-badge--svg{ filter:drop-shadow(0 12px 28px rgba(111,91,255,.35)) }
+.sa-dropzone__title{ font-weight:800; font-size:18px }
+.sa-dropzone__subtitle{ color:var(--sub); font-size:14px }
+.sa-dropzone__meta{ display:flex; gap:18px; color:var(--sub); font-size:13px; margin-top:6px }
+
+/* 파일칩 / 미리보기 */
+.sa-filechip{
+  display:inline-flex; align-items:center; gap:8px; padding:10px 12px;
+  border:1px solid var(--ring); border-radius:12px; background:#fff;
+  box-shadow:var(--shadow); margin-bottom:12px;
+}
+.sa-filechip__icon{ font-size:16px }
+.sa-filechip__name{
+  max-width:44ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.sa-filechip__size{ color:var(--sub); font-size:13px }
+.sa-badge.ready{
+  background:#eef2ff; color:#4f46e5; padding:4px 8px; border-radius:999px;
+  font-size:12px; font-weight:700;
+}
+.sa-preview{
+  width:160px; height:120px; object-fit:cover; border-radius:12px; border:1px solid var(--ring);
+  box-shadow:var(--shadow); margin:8px 0 6px;
+}
+.sa-selected{ display:grid; justify-items:center; gap:8px; padding:28px 12px; text-align:center }
+.sa-selected__actions{ display:flex; gap:8px; margin-top:4px }
+
+/* 보조 입력/풋터 */
+.sa-or{ margin:18px 0 8px; color:var(--sub) }
+.sa-textarea{ width:100%; border:1px solid var(--ring); border-radius:12px; padding:12px; resize:vertical; min-height:120px }
+.sa-card__footer{ margin-top:14px; display:flex; justify-content:flex-end }
+.sa-result{ white-space:pre-wrap; background:#0b1020; color:#e5e7eb; padding:16px; border-radius:12px; margin-top:14px }
+
+/* =========================================================
+   Modal
+========================================================= */
+.sa-modal__backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:grid; place-items:center; z-index:50 }
+.sa-modal{
+  background:#fff; border-radius:16px; padding:18px 18px 16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid #eef2ff;
+}
+.sa-modal__title{ font-weight:800; font-size:18px; margin-bottom:10px }
+.sa-modal__body{ display:grid; gap:10px }
+.sa-modal__footer, .sa-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:10px }
+.sa-field{ display:grid; gap:6px }
+.sa-field>label{ font-size:13px; color:var(--sub) }
+.sa-field>input{ border:1px solid var(--ring); padding:10px 12px; border-radius:10px }
+.sa-error{ color:#ef4444; font-size:13px }
+.sa-list{ border:1px solid var(--ring); border-radius:12px; max-height:260px; overflow:auto }
+.sa-list__item{ padding:10px 12px; border-bottom:1px solid #eef2ff }
+.sa-list__item:last-child{ border-bottom:none }
+.sa-list__item.selectable{ cursor:pointer }
+.sa-list__item.selectable:hover{ background:#f7f7ff }
+.sa-list__item.create{ color:#5f49ff; font-weight:700; cursor:pointer }
+
+/* =========================================================
+   Summary Accordion
+========================================================= */
+.sa-accordion{ display:grid; gap:10px }
+.sa-acc{ border:1px solid #eef2ff; border-radius:12px; background:#fff }
+.sa-acc__header{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:12px 14px; background:transparent; border:none; cursor:pointer;
+  font-weight:700; color:var(--ink); border-radius:12px;
+}
+.sa-acc__header:focus-visible{ outline:2px solid #a5b4fc; outline-offset:2px }
+.sa-acc__chev{ transition:transform .18s ease }
+.sa-acc.open .sa-acc__chev{ transform:rotate(180deg) }
+.sa-acc__body{ padding:12px 14px 14px; border-top:1px solid #f1f5ff }
+
+/* =========================================================
+   Chat UI (Smart Q&A)
+========================================================= */
+.sa-chat__composer{ display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:12px }
+.sa-chat__input{ border:1px solid var(--ring); border-radius:10px; padding:10px 12px }
+.sa-chat__send{ width:40px; display:grid; place-items:center; padding:0; border-radius:10px }
+
+.sa-chat{ display:grid; gap:10px }
+.sa-chat__turn{ display:grid; gap:6px }
 .sa-bubble{
-  max-width: 85%; padding:10px 12px; border-radius:14px; line-height:1.6; box-shadow:0 6px 18px rgba(17,24,39,.06);
+  max-width:85%; padding:10px 12px; border-radius:14px; line-height:1.6;
+  box-shadow:0 6px 18px rgba(17,24,39,.06);
 }
-.sa-bubble--me{ justify-self:end; background:#4f46e5; color:#fff; border-top-right-radius:6px; }
-.sa-bubble--ai{ justify-self:start; background:#ffffff; border:1px solid #eef2ff; border-top-left-radius:6px; }
-.sa-bubble__text{ white-space:pre-wrap; }
+.sa-bubble--me{ justify-self:end; background:#4f46e5; color:#fff; border-top-right-radius:6px }
+.sa-bubble--ai{ justify-self:start; background:#ffffff; border:1px solid #eef2ff; border-top-left-radius:6px }
+.sa-bubble__text{ white-space:pre-wrap }
 
-/* 근거 블록 */
-.sa-cites{ margin-top:8px; padding-top:8px; border-top:1px dashed #e8eafc; }
-.sa-cites__title{ font-size:12px; font-weight:800; color:#64748b; margin-bottom:4px; }
-.sa-cites__list{ margin:0; padding-left:18px; color:#4b5563; font-size:13px; }
-
+.sa-cites{ margin-top:8px; padding-top:8px; border-top:1px dashed #e8eafc }
+.sa-cites__title{ font-size:12px; font-weight:800; color:#64748b; margin-bottom:4px }
+.sa-cites__list{ margin:0; padding-left:18px; color:#4b5563; font-size:13px }
