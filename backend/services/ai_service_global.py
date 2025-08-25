@@ -55,8 +55,6 @@ _EMBEDDINGS = HuggingFaceEmbeddings(
     model_kwargs={'device': 'cpu'}
 )
 
-
-
 # ---- LLM 인스턴스 (Gemini) ----
 # 요약/QA 등 생성용.
 llm = ChatGoogleGenerativeAI(
