@@ -39,3 +39,6 @@ frontend/.env
 
 # --- Docker 볼륨/로컬 상태(필요시) ---
 mysql_data_*/
+
+# .chroma/ 추가
+.chroma/

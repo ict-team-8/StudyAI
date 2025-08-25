@@ -9,6 +9,7 @@ import api from "../api";
 import SubjectModal from "../components/SubjectModal";
 import Tabs from "../components/Tabs";
 import { IconDot, IconUploadBadge } from "../components/icons";
+import { Upload } from "lucide-react";
 
 type Subject = { subject_id: number; name: string };
 
@@ -68,8 +69,10 @@ return (
     <section className="sa-card">
         <div className="sa-card__header">
             <div className="sa-card__title" style={{gap:10}}>
-            <IconDot />
-            학습 자료 업로드
+                <span className="sa-title-badge">
+                    <Upload />
+                </span>
+                학습 자료 업로드
             </div>
         <div className="sa-card__actions">
           <button
