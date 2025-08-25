@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from routers.auth import get_session, Base, engine 
 from services.quiz_service import generate_quiz_for_subject
 
+from models.quiz_domain import QuizTable, QuestionBankTable, QuizAttemptTable, AttemptItemTable;
+
 router = APIRouter()
 
 class QuizRequest(BaseModel):
