@@ -38,27 +38,6 @@ export default function App() {
                         <SmartQA subjectId={subjectId} />
                     </div>
                 );
-            // return (
-            //   <div
-            //     style={{
-            //       display: "grid",
-            //       gridTemplateColumns: "1fr 1fr",
-            //       gap: 16,
-            //       alignItems: "start",
-            //     }}
-            //   >
-            //     <SummaryQA subjectId={subjectId} />
-            //     <section className="sa-card" style={{ padding: 20, minHeight: 200 }}>
-            //       <div className="sa-card__title" style={{ marginBottom: 8 }}>
-            //         스마트 Q&A (준비 중)
-            //       </div>
-            //       <p className="sa-card__desc">
-            //         업로드한 자료 기반 Q&A와 대화 기록 영역입니다.
-            //       </p>
-            //     </section>
-            //   </div>
-            // );
-
             case 'gen':
                 return (
                     <GenerateQuiz

@@ -221,3 +221,19 @@ body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, R
   background:linear-gradient(180deg,#7c6cff,#5f49ff);
   box-shadow:0 12px 28px rgba(95,73,255,.38);
 }
+
+/* 0825 디자인 추가 수정 -> 메인페이지 아이콘 관련 */
+/* 섹션 타이틀 왼쪽 그라데이션 배지 */
+.sa-title-badge{
+  width:28px; height:28px;
+  border-radius:999px;
+  display:inline-grid; place-items:center;
+  background: linear-gradient(180deg,#8a7bff,#6f5bff);
+  box-shadow: 0 8px 20px rgba(111,91,255,.32);
+}
+.sa-card__title .sa-title-badge svg{
+  width:16px; height:16px;
+  stroke: #fff;
+  stroke-width: 2.2;
+}
+
