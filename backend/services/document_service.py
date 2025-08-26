@@ -17,8 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # LangChain 문서/로더/벡터DB
 from langchain.schema import Document
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.vectorstores import Chroma
-
+# from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 
 # 공용 AI 유틸: 임베딩 인스턴스/텍스트 정제/청크 분할 함수
 from services.ai_service_global import _EMBEDDINGS, clean_text, split_to_chunks

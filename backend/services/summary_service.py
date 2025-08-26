@@ -6,7 +6,8 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from langchain_community.vectorstores import Chroma
+# from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
 
 from models.summary_domain import SummaryTable, SummaryType
