@@ -42,6 +42,37 @@ app.include_router(chat_router, prefix="/api", tags=["chat"])
 app.include_router(quiz_router, prefix="/api/quiz",tags=["quiz"] )
 app.include_router(analytic_router, prefix="/api", tags=["analytic"])
 
+from routers.auth import Base, engine
+
+# === 통합 Startup: 스키마 생성/초기화 ===
+@app.on_event("startup")
+async def on_startup_schema():
+    """
+    DB_RESET 동작:
+      - (없음/기본) : create_all (없는 테이블만 생성)
+      - drop-create : drop_all -> create_all (개발용: 싹 초기화)
+      - truncate    : 모든 테이블 데이터 TRUNCATE (스키마 유지, MySQL 기준)
+    """
+    mode = os.getenv("DB_RESET", "").strip().lower()
+
+    async with engine.begin() as conn:
+        if mode == "drop-create":
+            # ⚠️ 운영에서 절대 사용 금지
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+
+        elif mode == "truncate":
+            # MySQL 기준 TRUNCATE (FK 고려). 다른 DB면 로직 조정 필요.
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+            # sorted_tables: FK 고려된 순서 (reversed 필요 X, TRUNCATE는 자체적으로 안전)
+            for table in Base.metadata.sorted_tables:
+                # DB/스키마에 따라 백틱/따옴표가 필요할 수 있음
+                await conn.execute(text(f"TRUNCATE TABLE `{table.name}`;"))
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+
+        else:
+            # 기본: 없는 테이블만 생성
+            await conn.run_sync(Base.metadata.create_all)
 
 # swagger ui에만 영향가는 코드 (신경쓰지 마세요)
 from fastapi.openapi.utils import get_openapi

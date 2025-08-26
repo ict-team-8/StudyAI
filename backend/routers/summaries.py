@@ -47,8 +47,8 @@ async def make_summary(
     )
     return result
 
-# 개발 편의: 테이블 자동 생성
-@router.on_event("startup")
-async def on_startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# # 개발 편의: 테이블 자동 생성
+# @router.on_event("startup")
+# async def on_startup():
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
