@@ -211,50 +211,30 @@ async def get_subject_history(
         ))
 
     # (3) Quiz sets
-    # ⚠️ QuizTable에는 created_at/status가 없음 → 파생 필드로 생성:
-    #     - created_at: 해당 quiz의 "가장 이른 question_banks.created_at"
-    #                   없으면 "가장 이른 quiz_attempt.created_at"
-    #     - 정렬은 위 파생 created_at DESC
-    #     - status는 모델에 없으므로 응답에서 제거(프론트 스키마도 제거되어 있음)
-    qb_min_created = (
-        select(
-            QuestionBankTable.quiz_id.label("q_id"),
-            func.min(QuestionBankTable.created_at).label("min_qb_created")
-        )
-        .group_by(QuestionBankTable.quiz_id)
-        .subquery()
-    )
-    qa_min_created = (
-        select(
-            QuizAttemptTable.quiz_id.label("q_id"),
-            func.min(QuizAttemptTable.created_at).label("min_qa_created")
-        )
-        .group_by(QuizAttemptTable.quiz_id)
-        .subquery()
-    )
+    # ⚠️ QuizTable.created_at 생겼으니, 파싱테이블 없어도 됨
+    # QuizTable.difficulty는 "쉬움/보통/어려움" → API 스키마는 "easy/medium/hard" 이므로 변환해서 반환!
+    DIFF_KO2EN = {"쉬움": "easy", "보통": "medium", "어려움": "hard"}
 
     qs = await db.execute(
         select(
             QuizTable.quiz_id,
             QuizTable.requested_count,
-            QuizTable.difficulty,
-            QuizTable.type,
-            # 파생 생성시각: question_banks.created_at(최소) 우선, 없으면 attempts.created_at(최소)
-            func.coalesce(qb_min_created.c.min_qb_created, qa_min_created.c.min_qa_created).label("derived_created_at")
+            QuizTable.difficulty,   # "쉬움/보통/어려움"
+            QuizTable.type,         # "multiple_choice" 등
+            QuizTable.created_at,   # 이제 직접 사용
         )
-        .join(qb_min_created, qb_min_created.c.q_id == QuizTable.quiz_id, isouter=True)
-        .join(qa_min_created, qa_min_created.c.q_id == QuizTable.quiz_id, isouter=True)
         .where(QuizTable.user_id == user_id, QuizTable.subject_id == subject_id)
-        .order_by(desc(func.coalesce(qb_min_created.c.min_qb_created, qa_min_created.c.min_qa_created)))
+        .order_by(desc(QuizTable.created_at))
         .limit(limit)
     )
+
     quiz_sets = [
         dict(
             quizset_id=r.quiz_id,
             requested_count=r.requested_count,
-            difficulty=r.difficulty,
+            difficulty=DIFF_KO2EN.get(r.difficulty, "medium"),  # ← 표준화
             types=[r.type],
-            created_at=r.derived_created_at,  # 파생 생성시각
+            created_at=r.created_at,  # 파생 생성시각
         )
         for r in qs.all()
     ]
