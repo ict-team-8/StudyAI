@@ -6,18 +6,19 @@ from typing import TypedDict, Optional
 from sqlalchemy import (
     String, Integer, ForeignKey, Enum as SAEnum, Text, Float, DateTime, Boolean
 )
-from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL
+# from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL
+from sqlalchemy import JSON  # 추가
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from routers.auth import Base, UserTable  # 재사용
 
 
 # -------------------- Enum 정의 --------------------
-DifficultyEnum = SAEnum("easy", "medium", "hard", name="quiz_difficulty")
-QuizTypeEnum   = SAEnum("multiple_choice", "true_false", "short_answer", name="quiz_type")
-QuizStatusEnum = SAEnum("creating", "ready", "error", name="quiz_status")
+DifficultyEnum = SAEnum("쉬움", "보통", "어려움", name="quiz_difficulty")
+QuizTypeEnum   = SAEnum("multiple_choice", "short_answer", "essay", name="quiz_type")
 
-QuestionTypeEnum = SAEnum("multiple_choice", "short_answer", name="question_type")
+QuestionTypeEnum = SAEnum('객관식','단답형','주관식', name="question_type")
 
 # 등급(A~F 등) – 필요 시 조정
 GradeEnum = SAEnum("A", "B", "C", "D", "E", "F", name="quiz_grade")
@@ -61,12 +62,12 @@ class QuizTable(Base):
     requested_count: Mapped[int]        = mapped_column(Integer, default=0, nullable=False)
     difficulty:      Mapped[str]        = mapped_column(DifficultyEnum, nullable=False)
     type:            Mapped[str]        = mapped_column(QuizTypeEnum, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
 
     # ERD: settings JSONB (예: {"type":"fixed","mode":"문항수","time_limit_sec":...})
-    settings:        Mapped[dict | None]= mapped_column(JSONB, nullable=True)
-
-    status:          Mapped[str]        = mapped_column(QuizStatusEnum, default="creating", nullable=False)
-    created_at:      Mapped[datetime]   = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    settings    = mapped_column(JSON, nullable=True)
+    options     = mapped_column(JSON, nullable=True)
+    citations   = mapped_column(JSON, nullable=True)
 
     # 관계
     questions: Mapped[list["QuestionBankTable"]] = relationship(
@@ -92,12 +93,12 @@ class QuestionBankTable(Base):
     difficulty:       Mapped[str]       = mapped_column(DifficultyEnum, nullable=False)
 
     stem:             Mapped[str]       = mapped_column(Text, nullable=False)        # 문제 지문
-    options:          Mapped[dict | None]= mapped_column(JSONB, nullable=True)       # 객관식 선택지
+    options:          Mapped[dict | None]= mapped_column(JSON, nullable=True)       # 객관식 선택지
     correct_text:     Mapped[str]       = mapped_column(Text, nullable=False)        # 정답(텍스트)
     explanation:      Mapped[str | None]= mapped_column(Text, nullable=True)         # 해설
 
     # ERD: citations JSONB (예: {"chunk_id":123,"page":5,"span":[50,80],...} 의 배열도 가능)
-    citations:        Mapped[dict | list[dict] | None] = mapped_column(JSONB, nullable=True)
+    citations:        Mapped[dict | list[dict] | None] = mapped_column(JSON, nullable=True)
 
     created_at:       Mapped[datetime]  = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 

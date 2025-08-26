@@ -109,6 +109,7 @@
 // src/pages/SummaryQA.tsx
 // 설명: 좌측 요약 패널(절반 영역). 아코디언(접/펼) + 정리 출력(굵게/중복제목 제거)
 
+
 import React, { useMemo, useState } from "react";
 import api from "../api";
 
@@ -120,7 +121,9 @@ export default function SummaryQA({ subjectId }: Props) {
   const [summary, setSummary] = useState<string>("");
 
   // 서버가 돌려준 요약 문자열을 1~4 섹션으로 쪼개고, 보기 좋게 정리
-  const sections = useMemo(() => tidySections(parseSections(summary)), [summary]);
+    // 3) Fallback: 섹션이 전부 비면 원문 그대로 표시
+const sections = useMemo(() => tidySections(parseSections(summary)), [summary]);
+const gotAny = !!(sections.core || sections.traps || sections.areas || sections.lines3);
 
   async function createSummary() {
     if (!subjectId) { alert("먼저 자료를 업로드하거나 과목을 선택하세요."); return; }
@@ -136,6 +139,8 @@ export default function SummaryQA({ subjectId }: Props) {
       setLoading(false);
     }
   }
+
+
 
   return (
     <section className="sa-card" style={{ padding: 20 }}>
@@ -166,79 +171,86 @@ export default function SummaryQA({ subjectId }: Props) {
       )}
 
       {/* 아코디언: 1)~4) */}
-      {summary && (
-        <div className="sa-accordion">
-          <AccordionSection title="1) 핵심 개념" defaultOpen content={sections.core}/>
-          <AccordionSection title="2) 자주 나오는 함정/오개념" content={sections.traps}/>
-          <AccordionSection title="3) 주요 개념 영역별 요약" content={sections.areas}/>
-          <AccordionSection title="4) 3줄 최종 요약" content={sections.lines3}/>
-        </div>
-      )}
+        {summary && (
+        gotAny ? (
+            <div className="sa-accordion">
+            <AccordionSection title="1) 핵심 개념" defaultOpen content={sections.core}/>
+            <AccordionSection title="2) 자주 나오는 함정/오개념" content={sections.traps}/>
+            <AccordionSection title="3) 주요 개념 영역별 요약"  content={sections.areas}/>
+            <AccordionSection title="4) 3줄 최종 요약"          content={sections.lines3}/>
+            </div>
+        ) : (
+            <div className="sa-acc open">
+            <div className="sa-acc__body" style={{whiteSpace:'pre-wrap', lineHeight:1.64}}>
+                {summary}
+            </div>
+            </div>
+        )
+        )}
     </section>
   );
 }
 
 /* ---------- 텍스트 파서(섹션 분리) ---------- */
+// 1) 섹션 파서: 헤딩/굵게/여러 라벨 변형 허용
 function parseSections(raw: string) {
   const norm = (raw || "").replace(/\r\n/g, "\n");
 
-  // “1)” ~ “4)” 라벨의 시작 인덱스
-  const find = (n: number) => {
-    // **1) 핵심 개념 / 1)핵심개념 / 1)   … 등 허용
-    const re = new RegExp(`(^|\\n)\\s*\\**\\s*${n}\\)\\s*`, "i");
-    return norm.search(re);
-  };
+  // n): "### **1) …", "(1) …", "1. …", "① …" 등 폭넓게 허용
+  const mark = (n: number) =>
+    new RegExp(
+      String.raw`(^|\n)\s*(?:#{1,6}\s*)?(?:\*\*\s*)?(?:\(?\s*${n}\s*\)?|${["①","②","③","④"][n-1]})\s*[\.)]?:?\s*`,
+      "i"
+    );
 
-  const i1 = find(1), i2 = find(2), i3 = find(3), i4 = find(4);
-  const seg = (start: number, end: number) => {
+  const i1 = norm.search(mark(1));
+  const i2 = norm.search(mark(2));
+  const i3 = norm.search(mark(3));
+  const i4 = norm.search(mark(4));
+
+  const slice = (start: number, end: number) => {
     if (start < 0) return "";
-    const rest = norm.slice(start);
-    // “n)” 다음부터 자르기
-    const after = rest.replace(/^.*?\)\s*/, "");
+    // 라벨 줄 전체를 날리고 본문만
+    const after = norm.slice(start).replace(/^.*?(\n|$)/, "");
     return after.slice(0, end >= 0 ? end - start : undefined).trim();
   };
 
   return {
-    core:   seg(i1, i2),
-    traps:  seg(i2, i3),
-    areas:  seg(i3, i4),
-    lines3: seg(i4, -1),
+    core:   slice(i1, i2),
+    traps:  slice(i2, i3),
+    areas:  slice(i3, i4),
+    lines3: slice(i4, -1),
   };
 }
-
-/* ---------- 보기 좋게 정리(굵게/헤딩/불릿 정돈) ---------- */
+// 2) 보기 좋게 정리(중복 타이틀/굵게/불릿)
 function tidySections(s: {core:string; traps:string; areas:string; lines3:string}) {
-  const tidy = (txt: string, titleHints: string[]) => cleanBullets(stripBold(stripDupTitle(txt, titleHints)));
+  const tidy = (txt: string, hints: string[]) =>
+    cleanBullets(stripBold(stripDupTitle(txt, hints)));
   return {
-    core:   tidy(s.core,  ["핵심 개념", "핵심개념"]),
-    traps:  tidy(s.traps, ["자주 나오는 함정", "오개념"]),
-    areas:  tidy(s.areas, ["주요 개념 영역별 요약", "개념 영역", "영역별 요약"]),
+    core:   tidy(s.core,  ["핵심 개념","핵심개념"]),
+    traps:  tidy(s.traps, ["자주 나오는 함정","오개념"]),
+    areas:  tidy(s.areas, ["주요 개념 영역별 요약","개념 영역","영역별 요약"]),
     lines3: tidy(s.lines3,["3줄 최종 요약","최종 요약"]),
   };
 }
 
 // 섹션 맨 앞에 같은 제목이 한 번 더 들어간 경우 제거(굵게/콜론/별표 허용)
 function stripDupTitle(txt: string, hints: string[]) {
-  const firstLine = (txt.split("\n")[0] || "").trim();
-  const norm = firstLine.replace(/\*\*/g,"").replace(/[:：]$/,"").replace(/\s+/g,"");
-  if (hints.some(h => norm.includes(h.replace(/\s+/g,"")))) {
+  const first = (txt.split("\n")[0] || "").trim();
+  const norm  = first.replace(/\*\*/g,"").replace(/[:：]$/,"").replace(/\s+/g,"");
+  if (hints.some(h => norm.includes(h.replace(/\s+/g,""))))
     return txt.split("\n").slice(1).join("\n").trim();
-  }
   return txt;
 }
 
 // **bold** → bold (별표 제거)
-function stripBold(txt: string) {
-  return txt.replace(/\*\*(.*?)\*\*/g, "$1");
-}
+const stripBold    = (t:string)=> t.replace(/\*\*(.*?)\*\*/g,"$1");
 
 // 마크다운 불릿을 단일 스타일로 정리
-function cleanBullets(txt: string) {
-  return txt
-    .replace(/^\s*[-*]\s+/gm, "• ")          // 1단계 불릿
-    .replace(/^\s{2,}[-*]\s+/gm, "  · ")     // 들여쓰기 불릿
-    .trim();
-}
+const cleanBullets = (t:string)=>
+  t.replace(/^\s*[-*]\s+/gm, "• ")
+   .replace(/^\s{2,}[-*]\s+/gm, " · ")
+   .trim();
 
 /* ---------- UI: 아코디언 섹션 ---------- */
 function AccordionSection({
