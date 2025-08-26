@@ -26,7 +26,8 @@ tiktoken
 google-generativeai
 langchain
 langchain-google-genai
-langchain-community
+langchain-community>=0.2.9
+langchain-chroma>=0.1.0 
 langchain-huggingface
 chromadb
 rank-bm25
