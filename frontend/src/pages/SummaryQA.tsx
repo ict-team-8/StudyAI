@@ -1,124 +1,18 @@
-// // src/pages/SummaryQA.tsx
-// // 설명: 업로드 후 도착하는 “요약 & Q&A” 탭의 좌측 요약 영역(간단 버전)
-// // - subjectId가 없으면 빈 상태 안내
-// // - "새 요약 생성" 버튼 클릭 시 /api/summaries 호출
-// // - summary 문자열(마크다운 유사)을 1~4 구역으로 파싱해 카드에 표시
-
-// import React, { useMemo, useState } from "react";
-// import api from "../api";
-
-// type Props = { subjectId: number | null };
-
-// export default function SummaryQA({ subjectId }: Props) {
-//   const [topic, setTopic] = useState("전체 요약");     // 기본 프롬프트 제목
-//   const [loading, setLoading] = useState(false);
-//   const [summary, setSummary] = useState<string>("");  // 백엔드 반환 문자열
-
-//   // ✅ 간단 파서: “1) …”, “2) …”, “3) …”, “4) …” 섹션을 느슨하게 추출
-//   const sections = useMemo(() => parseSections(summary), [summary]);
-
-//   async function createSummary() {
-//     if (!subjectId) { alert("먼저 자료를 업로드하거나 과목을 선택하세요."); return; }
-//     try {
-//       setLoading(true);
-//       const { data } = await api.post("/summaries", {
-//         subject_id: subjectId,
-//         topic,
-//         type: "overall"    // 백엔드 enum: overall | traps | concept_areas | three_lines
-//       });
-//       // 서버 response_model: { summary_id, ok, reason, summary }
-//       setSummary(data.summary || "");
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
-
-//   return (
-//     <section className="sa-card" style={{ padding: 20 }}>
-//       <div className="sa-card__header" style={{ marginBottom: 12 }}>
-//         <div className="sa-card__title" style={{ gap: 8 }}>
-//           <span className="sa-title-icon" /> AI 자동 요약
-//         </div>
-//         <div className="sa-actions">
-//           <input
-//             className="sa-field-input"
-//             placeholder="요약 주제(예: 전체 요약 / 1~3장 위주 / 오개념만 등)"
-//             value={topic}
-//             onChange={(e)=>setTopic(e.target.value)}
-//             style={{ border:'1px solid var(--ring)', borderRadius:10, padding:'8px 10px', width: 280 }}
-//           />
-//           <button className="sa-btn primary" disabled={loading || !subjectId} onClick={createSummary}>
-//             {loading ? "생성 중…" : "새 요약 생성"}
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* 초기 빈 상태 */}
-//       {!summary && (
-//         <div style={{ color: 'var(--sub)' }}>
-//           아직 생성된 요약이 없습니다. 상단의 <b>새 요약 생성</b> 버튼을 눌러 요약을 만들어보세요.
-//         </div>
-//       )}
-
-//       {/* 요약 결과(있을 때만) */}
-//       {summary && (
-//         <div className="grid" style={{ display:'grid', gap:12 }}>
-//           <SummaryBlock title="1) 핵심 개념"      content={sections.core} />
-//           <SummaryBlock title="2) 자주 나오는 함정/오개념" content={sections.traps} />
-//           <SummaryBlock title="3) 주요 개념 영역별 요약"  content={sections.areas} />
-//           <SummaryBlock title="4) 3줄 최종 요약"    content={sections.lines3} />
-//         </div>
-//       )}
-//     </section>
-//   );
-// }
-
-// /** 마크다운 유사 텍스트에서 1~4번 섹션을 느슨하게 추출 */
-// function parseSections(raw: string) {
-//   const norm = (raw || "").replace(/\r\n/g, "\n");
-//   const idx = (label: string) => {
-//     // "**1) 핵심 개념", "1) 핵심 개념", "1)  " 등 변형 허용
-//     const re = new RegExp(`(^|\\n)\\s*\\**\\s*${label}\\)\\s*`, "i");
-//     return norm.search(re);
-//   };
-//   const i1 = idx("1"), i2 = idx("2"), i3 = idx("3"), i4 = idx("4");
-//   const s = (start: number, end: number) =>
-//     start >= 0 ? norm.slice(start).slice(norm.slice(start).search(/\)\s*/)+2, end >= 0 ? end - start : undefined).trim() : "";
-
-//   return {
-//     core:   s(i1, i2),
-//     traps:  s(i2, i3),
-//     areas:  s(i3, i4),
-//     lines3: s(i4, -1),
-//   };
-// }
-
-// function SummaryBlock({ title, content }: { title: string; content: string }) {
-//   return (
-//     <div style={{ border:'1px solid #eef2ff', borderRadius:12, padding:16, background:'#fff' }}>
-//       <div className="sa-card__title" style={{ fontSize:16, marginBottom:8 }}>{title}</div>
-//       {content ? (
-//         <div style={{ whiteSpace:'pre-wrap', lineHeight:1.6 }}>{content}</div>
-//       ) : (
-//         <div style={{ color:'var(--sub)' }}>해당 섹션 내용이 아직 없습니다.</div>
-//       )}
-//     </div>
-//   );
-// }
 
 // src/pages/SummaryQA.tsx
 // 설명: 좌측 요약 패널(절반 영역). 아코디언(접/펼) + 정리 출력(굵게/중복제목 제거)
 
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import api from "../api";
 
-type Props = { subjectId: number | null };
+type Props = { subjectId: number | null; auto?: boolean; onNext?: () => void };
 
-export default function SummaryQA({ subjectId }: Props) {
-  const [topic, setTopic] = useState("전체 요약");
+export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
+  const [topic, setTopic] = useState("전체 요약"); // auto에서 고정값 사용
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string>("");
+  const autoFiredRef = useRef(false); // 중복 실행 방지
 
   // 서버가 돌려준 요약 문자열을 1~4 섹션으로 쪼개고, 보기 좋게 정리
     // 3) Fallback: 섹션이 전부 비면 원문 그대로 표시
@@ -140,6 +34,21 @@ const gotAny = !!(sections.core || sections.traps || sections.areas || sections.
     }
   }
 
+  // ✅ 자동요약: subjectId가 생기고 아직 안 돌렸으면 1회 실행
+  useEffect(() => {
+    if (!auto) return;
+    if (!subjectId) return;
+    if (autoFiredRef.current) return;
+    autoFiredRef.current = true;
+    createSummary();
+  }, [auto, subjectId]);
+
+  // ✅ 확인 후 다음 단계로
+  function goNext() {
+    if(!onNext) return;
+    const ok = window.confirm("스마트 Q&A 기능을 사용하시겠습니까?");
+    if (ok) onNext();
+  }
 
 
   return (
@@ -149,44 +58,50 @@ const gotAny = !!(sections.core || sections.traps || sections.areas || sections.
         <div className="sa-card__title" style={{ gap: 8 }}>
           <span className="sa-title-icon" /> AI 자동 요약
         </div>
-        <div className="sa-actions">
-          <input
-            className="sa-field-input"
-            placeholder="요약 주제(예: 전체 요약 / 1~3장 위주 / 오개념만 등)"
-            value={topic}
-            onChange={(e)=>setTopic(e.target.value)}
-            style={{ border:'1px solid var(--ring)', borderRadius:10, padding:'8px 10px', width: 280 }}
-          />
-          <button className="sa-btn primary" disabled={loading || !subjectId} onClick={createSummary}>
-            {loading ? "생성 중…" : "새 요약 생성"}
-          </button>
-        </div>
+
+        {/* ❌ auto 모드에선 입력/버튼 제거, 수동 모드만 표시 */}
+        {!auto && (
+          <div className="sa-actions">
+            <input className="sa-field-input" placeholder="요약 주제"
+                   defaultValue={topic} readOnly style={{ border:'1px solid var(--ring)', borderRadius:10, padding:'8px 10px', width: 280 }} />
+            <button className="sa-btn primary" disabled={loading || !subjectId} onClick={createSummary}>
+              {loading ? "생성 중…" : "새 요약 생성"}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 초기 빈 상태 */}
+      {/* 상태 */}
       {!summary && (
         <div style={{ color: 'var(--sub)' }}>
-          아직 생성된 요약이 없습니다. 상단의 <b>새 요약 생성</b> 버튼을 눌러 요약을 만들어보세요.
+          {auto ? "업로드한 자료로 요약을 자동 생성 중입니다…" : "상단의 새 요약 생성 버튼을 눌러 요약을 만들어보세요."}
         </div>
       )}
 
-      {/* 아코디언: 1)~4) */}
-        {summary && (
+      {/* 결과 */}
+      {!!summary && (
         gotAny ? (
-            <div className="sa-accordion">
+          <div className="sa-accordion">
             <AccordionSection title="1) 핵심 개념" defaultOpen content={sections.core}/>
             <AccordionSection title="2) 자주 나오는 함정/오개념" content={sections.traps}/>
             <AccordionSection title="3) 주요 개념 영역별 요약"  content={sections.areas}/>
             <AccordionSection title="4) 3줄 최종 요약"          content={sections.lines3}/>
-            </div>
+          </div>
         ) : (
-            <div className="sa-acc open">
+          <div className="sa-acc open">
             <div className="sa-acc__body" style={{whiteSpace:'pre-wrap', lineHeight:1.64}}>
-                {summary}
+              {summary}
             </div>
-            </div>
+          </div>
         )
-        )}
+      )}
+
+      {/* ✅ 다음 단계: Q&A로 이동 */}
+      <div className="sa-card__footer" style={{ justifyContent:'flex-end' }}>
+        <button className="sa-btn primary" onClick={goNext} disabled={!summary || loading}>
+          다음 단계
+        </button>
+      </div>
     </section>
   );
 }
