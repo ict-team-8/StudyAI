@@ -9,6 +9,7 @@ import SummaryQA from './pages/SummaryQA';
 import SmartQA from './pages/SmartQA';
 import GenerateQuiz from './pages/GenerateQuiz';
 import QuizPlayer from './pages/Quizplayer';
+import Analytics from "./pages/Analytics";
 
 export default function App() {
     // 현재 활성 탭 상태 (초기값: 자료 업로드)
@@ -50,7 +51,12 @@ export default function App() {
             case 'solve':
                 return quizResult ? <QuizPlayer quiz={quizResult} /> : <Placeholder title="문제풀이" />;
             case 'analytics':
-                return <Placeholder title="학습 분석" />;
+                return (
+                    <Analytics
+                        subjectId={subjectId}
+                        onPickSubject={(id, name)=> setSubjectId(id ?? null)}
+                    ></Analytics>
+                );
         }
     };
 

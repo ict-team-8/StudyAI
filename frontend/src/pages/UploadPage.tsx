@@ -129,7 +129,7 @@ return (
               파일 선택하기
             </button>
             <div className="sa-dropzone__meta">
-              <span>• PDF, DOC, TXT</span>
+              <span>• PDF, TXT, 이미지</span>
               <span>• JPG, PNG</span>
               <span>• 최대 10MB</span>
             </div>
