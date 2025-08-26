@@ -4,11 +4,13 @@ AI 공용 유틸 (정제/분할/임베딩/LLM/프롬프트/CRAG 검증)
 - 이 모듈은 업로드/인덱싱(document_service)과 요약(summary_service)에서 공통 사용됩니다.
 - 임베딩 모델은 최초 import 시 로드(캐시됨). 최초 1회만 다운로드되며 다음부터는 로컬 캐시 사용.
 """
+from __future__ import annotations
 
 import os, re, uuid
 from bs4 import BeautifulSoup
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import warnings, logging
+from PyPDF2 import PdfReader
 
 from bs4 import BeautifulSoup
 
@@ -54,8 +56,6 @@ _EMBEDDINGS = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-mpnet-base-v2",
     model_kwargs={'device': 'cpu'}
 )
-
-
 
 # ---- LLM 인스턴스 (Gemini) ----
 # 요약/QA 등 생성용.
@@ -177,3 +177,4 @@ def refine_with_crag(summary_chain, llm: ChatGoogleGenerativeAI, retriever, topi
             logging.info(f"[CRAG] ❌ 실패(iter {it}): {grade.reason} → 재요약")
         fix_prompt = f"{summary_out}\n\n위 요약의 문제: {grade.reason}\n→ 문제를 반영하여 다시 요약하세요."
         summary_out = summary_chain.run(fix_prompt)
+

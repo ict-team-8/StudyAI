@@ -1,15 +1,25 @@
 # services/quiz_service.py
 from __future__ import annotations
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 import io
 import os
 import random
 import re
 import requests
+from pydantic import field_validator
+import json
+from datetime import datetime
+
 
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
+from models.document_domain import DocumentTable    # 문서 테이블
+from models.quiz_domain import QuizTable, QuestionBankTable  # 퀴즈 및 문항 테이블
+
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 try:
@@ -18,28 +28,34 @@ try:
 except Exception:
     _HAS_BM25 = False
 
-# ========= 유틸: 텍스트 로딩 =========
+
+# ========= [1] 텍스트 로딩 유틸 =========
 def _clean_text(t: str) -> str:
-    t = re.sub(r"<[^>]+>", " ", t)          # 단순 태그 제거 (필요시 bs4로 교체)
+    """
+    HTML 태그 및 불필요한 공백을 정리하여 텍스트를 깨끗하게 만듦
+    """
+    t = re.sub(r"<[^>]+>", " ", t)          # 태그 제거
     t = re.sub(r"\s+", " ", t).strip()
     return t
 
 def _load_text_from_path_or_url(path_or_url: str) -> str:
     """
-    - .txt: UTF-8 텍스트로 읽음
-    - .pdf: PyPDF2로 텍스트 추출
-    - http/https URL도 지원 (서버 접근 가능한 경우)
+    문서 경로 또는 URL로부터 텍스트를 로드
+    - .txt 파일: UTF-8로 읽기
+    - .pdf 파일: PyPDF2로 텍스트 추출
+    - http/https URL: requests로 가져오기
     """
     from PyPDF2 import PdfReader
 
     def _is_url(s: str) -> bool:
         return s.startswith("http://") or s.startswith("https://")
 
+    # URL 처리
     if _is_url(path_or_url):
         r = requests.get(path_or_url, timeout=15)
         r.raise_for_status()
-        # URL의 확장자 힌트
         if path_or_url.lower().endswith(".pdf"):
+            # PDF URL → 페이지 텍스트 추출
             with io.BytesIO(r.content) as bio:
                 reader = PdfReader(bio)
                 pages = [p.extract_text() or "" for p in reader.pages]
@@ -47,7 +63,7 @@ def _load_text_from_path_or_url(path_or_url: str) -> str:
         else:
             return _clean_text(r.text)
 
-    # 로컬 경로
+    # 로컬 파일 처리
     if not os.path.exists(path_or_url):
         raise FileNotFoundError(f"파일을 찾을 수 없습니다: {path_or_url}")
 
@@ -61,8 +77,14 @@ def _load_text_from_path_or_url(path_or_url: str) -> str:
         with open(path_or_url, "r", encoding="utf-8") as f:
             return _clean_text(f.read())
 
-# ========= 자료 레지스트리 =========
+
+# ========= [2] 자료 레지스트리 =========
 class QuizMaterialRegistry:
+    """
+    학습 자료(문서 텍스트)를 관리하는 클래스
+    - 텍스트를 받아서 청크 단위로 쪼개고 캐싱
+    - LLM 입력으로 활용
+    """
     def __init__(self, chunk_size: int = 500, chunk_overlap: int = 60):
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
@@ -70,15 +92,22 @@ class QuizMaterialRegistry:
         self._chunks_by_name: Dict[str, List[str]] = {}
 
     def put_material(self, name: str, texts: List[str]) -> None:
-        """DB/파일에서 읽은 순수 텍스트들을 name으로 등록"""
+        """
+        자료명을 key로 하여 원문 텍스트를 등록
+        - texts: 여러 문서의 텍스트 리스트
+        """
         self._texts_by_name[name] = texts
         if name in self._chunks_by_name:
             del self._chunks_by_name[name]
 
     def list_materials(self) -> List[str]:
+        """현재 등록된 자료명 리스트"""
         return list(self._texts_by_name.keys())
 
     def _ensure_chunks(self, name: str) -> None:
+        """
+        지정된 자료명에 대해 청크(split) 데이터 준비
+        """
         if name in self._chunks_by_name:
             return
         texts = self._texts_by_name.get(name)
@@ -91,35 +120,65 @@ class QuizMaterialRegistry:
         )
         merged = "\n\n".join(texts).strip()
         chunks = splitter.split_text(merged)
+        # 공백 아닌 문자열만 저장
         self._chunks_by_name[name] = [c for c in chunks if isinstance(c, str) and c.strip()]
 
     def get_all_chunks(self, name: str) -> List[str]:
+        """지정된 자료의 모든 청크 반환"""
         self._ensure_chunks(name)
         return self._chunks_by_name[name]
 
-# ========= 출력 스키마 =========
+
+# ========= [3] 출력 스키마 =========
 class QuizQuestion(BaseModel):
-    id: int = Field(..., description="문항 번호(1부터)")
-    type: str = Field(..., description="객관식|단답형|주관식 중 하나")
-    difficulty: str = Field(..., description="쉬움|보통|어려움")
-    question: str = Field(..., description="문항 본문")
-    options: Optional[List[str]] = Field(default=None, description="객관식일 때 보기 4개")
-    answer: str = Field(..., description="정답 또는 채점 포인트")
+    """
+    생성된 문제 1개를 표현하는 모델
+    """
+    id: int
+    type: str                      # 객관식 | 단답형 | 주관식
+    difficulty: str
+    question: str
+    options: Optional[List[str]] = None
+    answer: str
+    explanation: Optional[str] = None          # 해설
+    citations: Optional[Dict[str, str]] = None # 출처 (문서 정보)
+
+    @field_validator("citations", mode="before")
+    @classmethod
+    def parse_citations(cls, v):
+        # 문자열로 들어오면 dict로 변환
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return {"source": v}
+        return v
 
 class QuizSet(BaseModel):
-    source: str = Field(..., description="사용한 자료명(파일명)")
+    """
+    하나의 자료에서 생성된 문제 세트
+    """
+    source: str
     items: List[QuizQuestion]
 
-# ========= 생성기 =========
+
+# ========= [4] 문제 생성기 =========
 class QuizGenerator:
+    """
+    LLM(Gemini) 기반 문제 생성기
+    - 입력: 자료 청크
+    - 출력: QuizSet (문항 리스트)
+    """
     def __init__(self, registry: QuizMaterialRegistry, llm: ChatGoogleGenerativeAI):
         self.registry = registry
         self.llm = llm
 
+    # --- 문자열 정규화 ---
     @staticmethod
     def _normalize_type(t: Optional[str]) -> str:
+        """문제 유형 문자열 표준화"""
         if not isinstance(t, str):
-            return ""  # 방어: 문자열이 아니면 빈 값
+            return ""
         m = {
             "객관식": "객관식", "multiple": "객관식", "mcq": "객관식",
             "단답형": "단답형", "short": "단답형",
@@ -129,6 +188,7 @@ class QuizGenerator:
 
     @staticmethod
     def _normalize_diff(d: str) -> str:
+        """난이도 문자열 표준화"""
         m = {
             "쉬움": "쉬움", "easy": "쉬움",
             "보통": "보통", "medium": "보통", "중간": "보통",
@@ -136,8 +196,10 @@ class QuizGenerator:
         }
         return m.get((d or "").strip().lower(), d)
 
+    # --- BM25 관련 ---
     @staticmethod
     def _build_bm25(chunks: List[str]) -> Optional["BM25Okapi"]:
+        """BM25 인덱스 빌드"""
         if not _HAS_BM25:
             return None
         tokenized = [c.split() for c in chunks]
@@ -145,74 +207,74 @@ class QuizGenerator:
 
     @staticmethod
     def _bm25_max_score(bm25: Optional["BM25Okapi"], text: str) -> float:
+        """문항과 정답이 자료에 잘 근거하는지 점수"""
         if bm25 is None:
             return 0.0
         q = text.split()
         scores = bm25.get_scores(q)
         return float(max(scores)) if scores else 0.0
 
-    def _gen_one(self, qid: int, qtype: str, difficulty: str, context: str) -> QuizQuestion:
+    # --- LLM 한 문제 생성 ---
+    def _gen_one(self, qid: int, qtype: str, difficulty: str, context: str, source: str) -> QuizQuestion:
+        """
+        LLM을 호출해 단일 문항 생성
+        """
         structured = self.llm.with_structured_output(QuizQuestion)
         prompt = f"""
-당신은 학습용 퀴즈 출제자입니다. 아래 CONTEXT의 내용에서만 근거를 찾아 정확히 1개의 문제를 만드세요.
-- type은 "{qtype}" 로 설정합니다.
-- difficulty는 "{difficulty}" 로 설정합니다.
-- 객관식(type="객관식")일 때:
-  * options는 정확히 4개를 만드세요.
-  * 오직 하나만 정답이어야 합니다.
-  * answer에는 보기 중 정답 '텍스트'를 그대로 쓰세요.
-- 단답형(type="단답형")일 때: answer는 핵심 키워드 위주로 간결히.
-- 주관식(type="주관식")일 때: answer는 채점 포인트(핵심 요점)를 간결히 정리.
-- CONTEXT 밖의 사실/숫자/정의는 절대 추가하지 마세요.
+당신은 학습용 퀴즈 출제자입니다. 아래 CONTEXT에서만 문제를 만드세요.
 
-반환은 QuizQuestion(JSON) 형식이며, id에는 {qid} 를 넣으세요.
+- type: "{qtype}"
+- difficulty: "{difficulty}"
+- 객관식(type="객관식")일 때:
+  * options는 정확히 4개
+  * answer는 정답 보기 텍스트 그대로
+  * explanation: 왜 정답인지, 나머지는 왜 틀렸는지
+- 단답형/주관식일 때:
+  * answer는 핵심 키워드/요점
+  * explanation: 근거를 간단히 요약
+- 절대 CONTEXT 밖 지식 포함 금지
+- citations: {{ "source": "{source}" }}
+- id에는 {qid} 입력
 
 CONTEXT:
 {context}
 """
         return structured.invoke(prompt)
 
+    # --- 문제 세트 생성 ---
     def generate(
-    self,
-    material_name: str,
-    user_type: Union[str, List[str]],   # ← 리스트/문자열 모두 허용
-    user_difficulty: str,
-    n_questions: int = 5,
-    sample_span: int = 1,         # BM25로 top-k를 뽑을 개수
-    random_seed: Optional[int] = None,
-    bm25_threshold: float = 0.0,  # 더는 사용하지 않지만 시그니처 유지
-) -> QuizSet:
+        self,
+        material_name: str,
+        user_type: Union[str, List[str]],
+        user_difficulty: str,
+        n_questions: int = 5,
+        sample_span: int = 1,
+        random_seed: Optional[int] = None,
+    ) -> QuizSet:
         if random_seed is not None:
             random.seed(random_seed)
-
-        qtype = self._normalize_type(user_type)
-        diff  = self._normalize_diff(user_difficulty)
 
         chunks = self.registry.get_all_chunks(material_name)
         if not chunks:
             raise ValueError(f"선택한 자료 '{material_name}' 에서 사용할 청크가 없습니다.")
 
-        # ✅ BM25는 '사전 컨텍스트 선택' 용도로만 사용 (재호출 유발 X)
         bm25 = self._build_bm25(chunks)
-
         items: List[QuizQuestion] = []
 
         for qid in range(1, n_questions + 1):
-            # 순서대로 타입 적용
+            # 문제 유형 선택 (리스트면 라운드로빈)
             if isinstance(user_type, list):
                 qtype = self._normalize_type(user_type[(qid - 1) % len(user_type)])
             else:
                 qtype = self._normalize_type(user_type)
-            # 1) 앵커 청크 하나를 랜덤 선택
+
+            # 앵커 청크 선택
             anchor = random.choice(chunks)
 
-        # 2) BM25로 앵커와 유사한 청크 top-k 선택 (없으면 앵커만)
+            # BM25로 관련 청크 뽑기
             if bm25 is not None:
-                # 앵커의 단어들을 질의로 사용 (간단하지만 효과적)
                 query_tokens = anchor.split()
-                # get_top_n이 없다면 get_scores 사용 후 상위 k 인덱스 수동 선별
                 scores = bm25.get_scores(query_tokens)
-                # 상위 sample_span개 인덱스
                 top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:max(1, sample_span)]
                 picked = [chunks[i] for i in top_idx]
             else:
@@ -220,37 +282,42 @@ CONTEXT:
 
             context = "\n\n".join(picked)
 
-            # 3) ❗ LLM은 문항당 한 번만 호출
-            item = self._gen_one(qid=qid, qtype=qtype, difficulty=diff, context=context)
+            # 문제 생성
+            item = self._gen_one(qid=qid, qtype=qtype, difficulty=user_difficulty, context=context, source=material_name)
 
-            # 4) (선택) 객관식 옵션 보강은 재호출 없이 '로컬 보정'으로 축소
-            #    - 길이가 4가 아니면, 과감히 None 처리(프론트에서 재출제 버튼 권장)
+            # 객관식 옵션 보정
             if qtype == "객관식":
                 if not item.options or len(item.options) != 4:
-                    item.options = None  # 재호출 대신 보정 포기 → 쿼터 절약
+                    item.options = None
+
+            # citations 보강
+            if not item.citations:
+                item.citations = {"source": material_name}
 
             items.append(item)
 
         return QuizSet(source=material_name, items=items)
 
-# ========= 공개 서비스 API =========
+
+# ========= [5] 공개 서비스 API =========
 async def generate_quiz_for_subject(
-    session,
+    session: AsyncSession,
     *,
+    user_id: str,
     subject_id: int,
-    qtype: str,
+    qtype: Union[str, List[str]],
     difficulty: str,
     num_questions: int,
-    model_name: str | None = None,   # <-- None 허용
-) -> QuizSet:
+    model_name: str | None = None,
+) -> Dict[str, any]:
     """
-    - DB에서 subject_id로 DocumentTable 조회
-    - 각 document.file_url을 열어 텍스트 수집 (PDF/TEXT)
-    - 레지스트리 등록 후 QuizGenerator로 문제 생성
+    주어진 과목(subject_id)에 대해 퀴즈를 생성하고 DB에 저장
+    1) DocumentTable에서 문서 조회
+    2) file_url 기반으로 텍스트 로드
+    3) QuizGenerator를 통해 문제 세트 생성
+    4) QuizTable/QuestionBankTable에 저장
+    5) QuizSet(JSON) 반환
     """
-    from sqlalchemy import select
-    from models.document_domain import DocumentTable
-
     # 1) subject에 연결된 문서 조회
     stmt = select(DocumentTable).where(DocumentTable.subject_id == subject_id)
     result = await session.execute(stmt)
@@ -258,37 +325,65 @@ async def generate_quiz_for_subject(
     if not docs:
         raise ValueError("해당 과목에 업로드된 자료가 없습니다.")
 
-    # 2) 레지스트리 구성
-    registry = QuizMaterialRegistry()
-    # 가장 단순하게 '첫 번째 문서'만 사용 (원하면 랜덤/합치기 가능)
     doc = docs[0]
-
-    # source_type: 'TEXT' | 'PDF'
-    # file_url: 로컬 경로 또는 http(s) URL 가정
     if not doc.file_url:
-        # file_url이 없으면 title만으로는 생성 불가 → 에러
         raise ValueError("선택한 자료에 file_url이 없어 텍스트를 로딩할 수 없습니다.")
 
+    # 2) 텍스트 로드
     text = _load_text_from_path_or_url(doc.file_url)
     if not text or len(text) < 20:
         raise ValueError("자료 텍스트가 비어있거나 너무 짧습니다.")
-    
-    # 예: "객관식, 주관식" -> ["객관식","주관식"]
-    if isinstance(qtype, str) and ("," in qtype):
-        qtype_list: Union[str, List[str]] = [t.strip() for t in qtype.split(",") if t.strip()]
-    else:
-        qtype_list = qtype  # 단일 문자열 그대로
 
+    # 3) 문제 유형 파싱 (문자열 → 리스트)
+    if isinstance(qtype, str) and ("," in qtype):
+        qtype_list = [t.strip() for t in qtype.split(",") if t.strip()]
+    else:
+        qtype_list = qtype
+
+    # 4) 레지스트리 구성
+    registry = QuizMaterialRegistry()
     registry.put_material(doc.title, [text])
 
-    # 3) LLM 준비 & 생성
+    # 5) LLM 초기화 & 문제 생성
     use_model = model_name or DEFAULT_GEMINI_MODEL
     llm = ChatGoogleGenerativeAI(model=use_model)
     generator = QuizGenerator(registry=registry, llm=llm)
-    quiz = generator.generate(
+    quiz_set = generator.generate(
         material_name=doc.title,
         user_type=qtype_list,
         user_difficulty=difficulty,
         n_questions=num_questions,
     )
-    return quiz
+
+    # 6) DB 저장 (퀴즈 메타 + 문항들)
+    new_quiz = QuizTable(
+        user_id=user_id,
+        subject_id=subject_id,
+        title=f"{doc.title} 기반 퀴즈",
+        requested_count=num_questions,
+        difficulty=difficulty,
+        type="multiple_choice" if "객관식" in str(qtype_list) else "short_answer",
+        created_at=datetime.utcnow(),
+    )
+    session.add(new_quiz)
+    await session.flush()  # quiz_id 확보
+
+    for q in quiz_set.items:
+        question_row = QuestionBankTable(
+            quiz_id=new_quiz.quiz_id,
+            qtype=q.type,
+            difficulty=q.difficulty,
+            stem=q.question,
+            options={"choices": q.options} if q.options else None,
+            correct_text=q.answer,
+            explanation=q.explanation,
+            citations=q.citations,
+            created_at=datetime.utcnow(),
+        )
+        session.add(question_row)
+
+    await session.commit()
+    await session.refresh(new_quiz)
+
+    # 7) JSON 형태로 반환
+    return quiz_set.model_dump()

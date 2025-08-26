@@ -15,11 +15,10 @@ from routers.auth import Base, UserTable  # 재사용
 
 
 # -------------------- Enum 정의 --------------------
-DifficultyEnum = SAEnum("easy", "medium", "hard", name="quiz_difficulty")
-QuizTypeEnum   = SAEnum("multiple_choice", "true_false", "short_answer", name="quiz_type")
-QuizStatusEnum = SAEnum("creating", "ready", "error", name="quiz_status")
+DifficultyEnum = SAEnum("쉬움", "보통", "어려움", name="quiz_difficulty")
+QuizTypeEnum   = SAEnum("multiple_choice", "short_answer", "essay", name="quiz_type")
 
-QuestionTypeEnum = SAEnum("multiple_choice", "short_answer", name="question_type")
+QuestionTypeEnum = SAEnum('객관식','단답형','주관식', name="question_type")
 
 # 등급(A~F 등) – 필요 시 조정
 GradeEnum = SAEnum("A", "B", "C", "D", "E", "F", name="quiz_grade")
@@ -63,6 +62,7 @@ class QuizTable(Base):
     requested_count: Mapped[int]        = mapped_column(Integer, default=0, nullable=False)
     difficulty:      Mapped[str]        = mapped_column(DifficultyEnum, nullable=False)
     type:            Mapped[str]        = mapped_column(QuizTypeEnum, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
 
     # ERD: settings JSONB (예: {"type":"fixed","mode":"문항수","time_limit_sec":...})
     settings    = mapped_column(JSON, nullable=True)
