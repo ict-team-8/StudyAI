@@ -5,6 +5,7 @@
 
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import api from "../api";
+import { Download } from "lucide-react"; // 다운로드 아이콘
 
 type Props = { subjectId: number | null; auto?: boolean; onNext?: () => void };
 
@@ -21,6 +22,18 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
   const [translated, setTranslated] = useState<string>("");       // 번역된 텍스트 보관
   const [showTrans, setShowTrans] = useState(false);              // '번역 보기' 토글
   const [langQuery, setLangQuery] = useState<string>(""); // 요약, 언어 검색 상태값
+
+  const btnS: React.CSSProperties = {
+    height: 36,
+    padding: "8px 12px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    lineHeight: 1
+  };
+
+  // PDF 다운 때, 필요한 summaryId
+  const [summaryId, setSummaryId] = useState<number | null>(null);
 
   // langs 로드 후 1회 초기화
   useEffect(() => {
@@ -79,6 +92,36 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
     createSummary();
   }, [auto, subjectId]);
 
+  // PDF 다운로드 함수 
+  async function downloadPdf() {
+    if (!summaryId) return;
+    try {
+      const res = await api.get(`/summaries/${summaryId}/pdf`, { responseType: "blob" });
+
+      // 파일명 파싱
+      const dispo = (res.headers?.["content-disposition"] || "") as string;
+      let filename = `${topic || "요약"}_요약.pdf`; // 백업값
+      if (dispo) {
+        const m1 = dispo.match(/filename\*=UTF-8''([^;]+)/i);
+        const m2 = dispo.match(/filename="([^"]+)"/i);
+        const raw = m1 ? decodeURIComponent(m1[1]) : (m2 ? m2[1] : null);
+        if (raw) filename = raw;
+      }
+
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename; // 서버로부터 파싱한 파일명
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("PDF 다운로드에 실패했습니다.");
+    }
+  }
+
   // ✅ 확인 후 다음 단계로
   function goNext() {
     if(!onNext) return;
@@ -97,6 +140,7 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
         type: "overall",
       });
       setSummary(data.summary || "");
+      setSummaryId(data.summary_id ?? null); // 생성된 summary_id 저장
     } finally {
       setLoading(false);
     }
@@ -160,7 +204,7 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
           </datalist>
 
           {/* 번역 실행 */}
-          <button className="sa-btn" onClick={translateNow} disabled={!summary || tLoading}>
+          <button className="sa-btn" style={btnS} onClick={translateNow} disabled={!summary || tLoading}>
             {tLoading ? "번역 중…" : "번역"}
           </button>
 
@@ -179,6 +223,20 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
               </button>
             </>
           )}
+
+            {/* ⬇️ 다운로드 버튼 (요약이 있고 summaryId가 있을 때 활성) */}
+            <div>
+              <button
+                className="sa-btn"
+                style={btnS}
+                onClick={downloadPdf}
+                disabled={!summaryId}
+                title="요약을 PDF로 저장"
+              >
+                <Download size={16} style={{ marginRight: 6 }} />
+                PDF
+              </button>
+            </div>
         </div>
       </div>
 
