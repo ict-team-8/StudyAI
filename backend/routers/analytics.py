@@ -100,7 +100,7 @@ async def analytics_subject_history(
     )
 
 # (개발용) 자동 생성
-@router.on_event("startup")
-async def on_startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# @router.on_event("startup")
+# async def on_startup():
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)

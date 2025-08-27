@@ -63,8 +63,8 @@ async def get_subjects(
     subjects = await list_subjects(session, user.id, q)
     return subjects
 
-# 초기 개발 편의: 테이블 자동 생성
-@router.on_event("startup")
-async def on_startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# # 초기 개발 편의: 테이블 자동 생성
+# @router.on_event("startup")
+# async def on_startup():
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
