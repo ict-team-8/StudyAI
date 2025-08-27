@@ -154,71 +154,27 @@ def grade_summary(llm: ChatGoogleGenerativeAI, retrieved_docs: List[Document], s
     structured = llm.with_structured_output(SummaryGrade)
     return structured.invoke(grader_prompt)
 
-# def refine_with_crag(summary_chain, llm: ChatGoogleGenerativeAI, retriever, topic: str, max_iters: int = 2, verbose: bool = True) -> Tuple[str, bool, str]:
-#     """
-#     1) 요약 생성
-#     2) grade_summary로 정합성 검사
-#     3) 불합격이면 사유를 포함해 재요약 (max_iters 회)
-#     4) (summary_text, ok, reason) 반환
-#     """
-#     # summary_out = summary_chain.run(topic)
-#     summary_out = summary_chain.invoke(topic)
-#     for it in range(max_iters + 1):
-#         # docs_for_grade = retriever.get_relevant_documents(topic)
-#         docs_for_grade = retriever.invoke(topic)
-#         grade = grade_summary(llm, docs_for_grade, summary_out)
-#         if grade.ok:
-#             if verbose:
-#                 logging.info(f"[CRAG] ✅ 통과(iter {it}): {grade.reason}")
-#             return summary_out, True, grade.reason
-#         if it == max_iters:
-#             if verbose:
-#                 logging.warning(f"[CRAG] ⚠️ 최대 재시도 도달. 마지막 사유: {grade.reason}")
-#             return summary_out, False, grade.reason
-#         if verbose:
-#             logging.info(f"[CRAG] ❌ 실패(iter {it}): {grade.reason} → 재요약")
-#         fix_prompt = f"{summary_out}\n\n위 요약의 문제: {grade.reason}\n→ 문제를 반영하여 다시 요약하세요."
-#         # summary_out = summary_chain.run(fix_prompt)
-#         summary_out = summary_chain.invoke(fix_prompt)
-
-def _to_text(out) -> str:
-    # RetrievalQA / Runnable 계열은 보통 dict을 돌려줌
-    if isinstance(out, dict):
-        # langchain RetrievalQA 표준 키들 우선
-        for k in ("result", "answer", "output_text", "text"):
-            if k in out and isinstance(out[k], str):
-                return out[k]
-        # 혹시 모를 케이스: 그냥 문자열화
-        return str(out)
-    # 이미 문자열이면 그대로
-    return str(out)
-
-def refine_with_crag(summary_chain, llm, retriever, topic: str, max_iters: int = 2, verbose: bool = True):
-    # 1) 1차 요약
-    summary_out = summary_chain.invoke(topic)
-    summary_text = _to_text(summary_out)
-
+def refine_with_crag(summary_chain, llm: ChatGoogleGenerativeAI, retriever, topic: str, max_iters: int = 2, verbose: bool = True) -> Tuple[str, bool, str]:
+    """
+    1) 요약 생성
+    2) grade_summary로 정합성 검사
+    3) 불합격이면 사유를 포함해 재요약 (max_iters 회)
+    4) (summary_text, ok, reason) 반환
+    """
+    summary_out = summary_chain.run(topic)
     for it in range(max_iters + 1):
-        # 2) 컨텍스트 다시 가져와 채점
-        docs_for_grade = retriever.invoke(topic)
-        grade = grade_summary(llm, docs_for_grade, summary_text)
-
+        docs_for_grade = retriever.get_relevant_documents(topic)
+        grade = grade_summary(llm, docs_for_grade, summary_out)
         if grade.ok:
             if verbose:
                 logging.info(f"[CRAG] ✅ 통과(iter {it}): {grade.reason}")
-            return summary_text, True, grade.reason
-
+            return summary_out, True, grade.reason
         if it == max_iters:
             if verbose:
                 logging.warning(f"[CRAG] ⚠️ 최대 재시도 도달. 마지막 사유: {grade.reason}")
-            return summary_text, False, grade.reason
-
+            return summary_out, False, grade.reason
         if verbose:
             logging.info(f"[CRAG] ❌ 실패(iter {it}): {grade.reason} → 재요약")
-
-        # 3) 재요약 프롬프트 구성 후 재생성
-        fix_prompt = f"{summary_text}\n\n위 요약의 문제: {grade.reason}\n→ 문제를 반영하여 다시 요약하세요."
-        summary_out = summary_chain.invoke(fix_prompt)
-        summary_text = _to_text(summary_out)
-
+        fix_prompt = f"{summary_out}\n\n위 요약의 문제: {grade.reason}\n→ 문제를 반영하여 다시 요약하세요."
+        summary_out = summary_chain.run(fix_prompt)
 
