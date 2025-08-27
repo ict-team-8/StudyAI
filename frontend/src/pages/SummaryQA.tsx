@@ -20,6 +20,32 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
   const [tLoading, setTLoading] = useState(false);                // 번역 호출 중 로딩 상태
   const [translated, setTranslated] = useState<string>("");       // 번역된 텍스트 보관
   const [showTrans, setShowTrans] = useState(false);              // '번역 보기' 토글
+  const [langQuery, setLangQuery] = useState<string>(""); // 요약, 언어 검색 상태값
+
+  // langs 로드 후 1회 초기화
+  useEffect(() => {
+    if (Object.keys(langs).length) {
+      const code = lang in langs ? lang : (langs.en ? "en" : Object.keys(langs)[0]);
+      setLang(code);
+      setLangQuery(`${code} — ${langs[code] ?? ""}`);
+    }
+  }, [langs]);
+
+  // lang 변경 시 표시 문자열 동기화
+  useEffect(() => {
+    if (lang && langs[lang]) setLangQuery(`${lang} — ${langs[lang]}`);
+  }, [lang, langs]);
+
+  // "en — english" → "en"
+  function parseCode(v: string) {
+    return (v || "").split(" — ")[0].trim();
+  }
+
+  // 사용자가 목록에서 고른 값이면 lang 확정
+  function commitIfValid(v: string) {
+    const code = parseCode(v);
+    if (langs[code]) setLang(code);
+  }
 
   // 서버가 돌려준 요약 문자열을 1~4 섹션으로 쪼개고, 보기 좋게 정리
     // 3) Fallback: 섹션이 전부 비면 원문 그대로 표시
@@ -105,22 +131,33 @@ export default function SummaryQA({ subjectId, auto=false, onNext }: Props) {
 
         {/* ✅ 번역 UI는 항상 노출, 수동 생성 버튼만 !auto 조건 */}
         <div className="sa-actions">
-          {/* 언어 선택 */}
-          <select
+          {/* 언어 검색 기능 */}
+          <input
             className="sa-field-input"
-            value={lang}
-            onChange={(e)=>setLang(e.target.value)}
-            style={{ border:'1px solid var(--ring)', borderRadius:10, padding:'8px 10px' }}
-            aria-label="번역 언어"
+            list="summary-lang-list"
+            value={langQuery}
+            onChange={(e) => {
+              const v = e.target.value;
+              setLangQuery(v);
+              commitIfValid(v);          // 제안에서 선택되면 즉시 확정
+            }}
+            onBlur={(e) => commitIfValid(e.target.value)} // 포커스 아웃 시도 확정
+            placeholder="언어 검색… ex) en, english"
+            style={{ border:'1px solid var(--ring)', borderRadius:10, padding:'8px 10px', minWidth: 260 }}
+            aria-label="번역 언어 검색"
             disabled={!summary}
-          >
-            {["en","ja","zh-CN","fr","de","es","vi","id","hi","ar","ru","th","tr","pt"].map(code =>
-              langs[code] ? <option key={code} value={code}>{code} — {langs[code]}</option> : null
-            )}
-            {Object.keys(langs).map(code => (
-              <option key={`all-${code}`} value={code}>{code} — {langs[code]}</option>
-            ))}
-          </select>
+          />
+
+          <datalist id="summary-lang-list">
+            {Array.from(new Set([
+              // 추천 우선
+              ...["en","ja","zh-CN","fr","de","es","vi","id","hi","ar","ru","th","tr","pt"]
+                .filter(code => langs[code])
+                .map(code => `${code} — ${langs[code]}`),
+              // 전체
+              ...Object.entries(langs).map(([code, name]) => `${code} — ${name}`)
+            ])).map(v => <option key={v} value={v} />)}
+          </datalist>
 
           {/* 번역 실행 */}
           <button className="sa-btn" onClick={translateNow} disabled={!summary || tLoading}>
