@@ -4,10 +4,10 @@ import React, { useEffect, useState } from "react";
 import api from "../api";
 import { MessageCircle, Send, User, Bot } from "lucide-react";
 
-type Props = { subjectId: number | null };
+type Props = { subjectId: number | null; auto?: boolean; };
 type Turn = { qa_turn_id: number; question: string; answer: string; citations: string[] };
 
-export default function SmartQA({ subjectId }: Props){
+export default function SmartQA({ subjectId, auto=false }: Props){
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [question, setQuestion]   = useState("");
   const [loading, setLoading]     = useState(false);
@@ -19,6 +19,15 @@ export default function SmartQA({ subjectId }: Props){
     setSessionId(data.chat_session_id);
     setTurns([]);
   }
+
+  // ✅ 자동 세션 생성
+  useEffect(() => {
+    if(!auto) return;
+    if(!subjectId) return;
+    if(sessionId) return;
+    createSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, subjectId]);
 
   async function ask(){
     if(!sessionId || !subjectId || !question.trim()) return;
@@ -51,17 +60,16 @@ export default function SmartQA({ subjectId }: Props){
           <span>스마트 Q&A</span>
         </div>
 
-        {!sessionId && (
+        {/* ❌ auto 모드에선 버튼 숨김, 수동만 표시 */}
+        {!auto && !sessionId && (
           <button className="sa-btn sa-btn--gradient" disabled={!subjectId} onClick={createSession}>
             Q&A 세션 만들기
           </button>
         )}
       </div>
 
-      {!sessionId && (
-        <p className="sa-card__desc">
-            업로드한 자료의 벡터 인덱스를 기반으로 답변합니다. 버튼을 눌러 새 세션을 시작하세요.
-        </p>
+      {!sessionId && !auto && (
+        <p className="sa-card__desc">업로드한 자료의 벡터 인덱스를 기반으로 답변합니다. 버튼을 눌러 새 세션을 시작하세요.</p>
       )}
 
       {sessionId && (
