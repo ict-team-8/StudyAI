@@ -13,6 +13,11 @@ const DIFF_LABEL: Record<"easy"|"medium"|"hard", string> = {
   easy: "쉬움", medium: "보통", hard: "어려움"
 };
 
+// 빈 히스토리 상수
+const EMPTY_HIS: SubjectHistoryResponse = {
+  summaries: [], qa_sessions: [], quiz_sets: [], quiz_attempts: []
+};
+
 
 /** ---- 서버 응답 타입 (routers/analytics.py와 일치) ---- */
 type OverviewCard = {
@@ -34,7 +39,8 @@ const delta = (p:number)=>`${p>0?"+":""}${p.toFixed(0)}%`;
 export default function Analytics({ subjectId, onPickSubject }: Props){
   const [subject, setSubject] = useState<Subject|null>(null);
   const [ov, setOv] = useState<OverviewCard|null>(null);
-  const [his, setHis] = useState<SubjectHistoryResponse|null>(null);
+  // 변경 : his 초기값을 null -> 빈값
+  const [his, setHis] = useState<SubjectHistoryResponse|null>(EMPTY_HIS);
   const [loading, setLoading] = useState(false);
 
   // 상위 상태와 동기화
@@ -46,22 +52,40 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
     if(subjectId===null) setSubject(null);
   }, [subjectId]);
 
-  // 데이터 로드
-  useEffect(()=>{
-    (async()=>{
+  // 데이터 로드 useEffect
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
       setLoading(true);
-      try{
-        const qs = subject?.subject_id ? `?subject_id=${subject.subject_id}` : "";
-        const [{ data: overview }, historyResp] = await Promise.all([
-          api.get<OverviewCard>(`/analytics/overview${qs}`),
-          subject?.subject_id 
-            ? api.get<SubjectHistoryResponse>(`/analytics/subject/${subject.subject_id}/history?limit=20`)
-            : Promise.resolve(null)
-        ]);
+      try {
+        const sid = subject?.subject_id;
+
+        // 1) overview는 과목이 있으면 필터 걸고, 없으면 전체
+        const qs = sid ? `?subject_id=${sid}` : "";
+        const { data: overview } = await api.get<OverviewCard>(`/analytics/overview${qs}`);
+        if (cancelled) return;
         setOv(overview);
-        setHis(historyResp?.data ?? null);
-      } finally { setLoading(false); }
+
+        // 2) 과목이 없으면 히스토리는 건너뛰고 빈값 유지
+        if (!sid) {
+          setHis(EMPTY_HIS);
+          return;
+        }
+
+        // 3) 과목이 있을 때만 히스토리 호출
+        const { data: history } = await api.get<SubjectHistoryResponse>(
+          `/analytics/subject/${sid}/history`,
+          { params: { limit: 20 } }
+        );
+        if (cancelled) return;
+        setHis(history ?? EMPTY_HIS);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+
+    return () => { cancelled = true; };
   }, [subject?.subject_id]);
 
   // 과목 선택 콜백: 상위(App)에도 반영
@@ -105,13 +129,17 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
       {/* 과목별 히스토리 */}
       <div className="sa-card" style={{ marginTop:16 }}>
         <div className="sa-card__title">과목별 히스토리</div>
-        {!subject && <p className="sa-card__desc">과목을 선택하면 요약/QA/문제/풀이 이력이 표시됩니다.</p>}
-        {subject && loading && <p>불러오는 중…</p>}
-        {subject && !loading && his && (
+
+        {/* 단일 삼항으로 분기 */}
+        {!subject ? (
+          <p className="sa-card__desc">과목을 선택하면 요약/QA/문제/풀이 이력이 표시됩니다.</p>
+        ) : loading ? (
+          <p>불러오는 중…</p>
+        ) : (
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
             <HistoryList
               title="요약(Summaries)"
-              items={his.summaries.map(s=>({
+              items={(his?.summaries ?? []).map(s=>({
                 id:s.summary_id,
                 title:`${s.type} · ${s.topic}`,
                 right:s.model ?? "",
@@ -122,7 +150,7 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
             />
             <HistoryList
               title="스마트 QA 세션"
-              items={his.qa_sessions.map(q=>({
+              items={(his?.qa_sessions ?? []).map(q=>({
                 id:q.chat_session_id,
                 title:q.title,
                 right:`${q.turn_count}턴`,
@@ -133,7 +161,7 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
             />
             <HistoryList
               title="문제 세트"
-              items={his.quiz_sets.map(z=>({
+              items={(his?.quiz_sets ?? []).map(z=>({
                 id:z.quizset_id,
                 title:`#${z.quizset_id} · ${DIFF_LABEL[z.difficulty]} · ${z.types.join(", ")}`,
                 right:`${z.requested_count}문항`,
@@ -143,7 +171,7 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
             />
             <HistoryList
               title="세트 풀이 결과"
-              items={his.quiz_attempts.map(a=>({
+              items={(his?.quiz_attempts ?? []).map(a=>({
                 id:a.attempt_id,
                 title:`세트 #${a.quizset_id} · ${Math.round(a.accuracy*100)}% (${a.grade})`,
                 right:`정답 ${a.correct_count}개`,
@@ -153,7 +181,7 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
             />
           </div>
         )}
-      </div>
+</div>
     </section>
   );
 }
