@@ -13,11 +13,14 @@ bearer_scheme = HTTPBearer()
 
 router = APIRouter()
 
-@router.post("/documents/upload", summary="문서 업로드(PDF or 긴 텍스트)")
+@router.post("/documents/upload", summary="문서 업로드(PDF/긴 텍스트/OCR 이미지)")
 async def upload_document(
     subject_id: int = Form(...),
     file: UploadFile | None = File(None),
     text: Optional[str] = Form(None),
+    # OCR로 인한 parse_mode 추가
+    parse_mode: str = Form("auto"),            # auto|pdf|text|ocr
+    debug_preview: bool = Form(False),         # OCR 미리보기 포함 여부
     user: UserTable = Depends(current_active_user),
     token: str = Security(bearer_scheme),
     session: AsyncSession = Depends(get_session),
@@ -32,6 +35,8 @@ async def upload_document(
         subject_id=subject_id,
         file=file,
         text=text,
+        parse_mode=parse_mode,
+        debug_preview=debug_preview, 
     )
 
 # (개발용) 테이블 생성
