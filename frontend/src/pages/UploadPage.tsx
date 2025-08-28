@@ -24,6 +24,10 @@ export default function UploadPage({ onUploaded }: { onUploaded: (subjectId: num
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
+  // 업로드할 모드는 백엔드 자동 감지 메서드가 대신 해줌
+  const ACCEPT_ALL = '.pdf,.txt,.jpg,.jpeg,.png,image/*';
+
+
   // 보기 좋은 용량 포맷
     const formatBytes = (n: number) => {
     if (n < 1024) return `${n} B`;
@@ -53,11 +57,29 @@ export default function UploadPage({ onUploaded }: { onUploaded: (subjectId: num
     form.append("subject_id", String(subject.subject_id));
     if(file) form.append("file", file);
     if(text.trim()) form.append("text", text.trim());
+   // form.append("parse_mode", mode);
+    form.append("debug_preview", "true"); // OCR일 때 미리보기 받기
 
     // 업로드만 실행 (응답 바디는 화면에 출력하지 않음)
-    await api.post("/documents/upload", form, {
+    const { data } = await api.post("/documents/upload", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
+
+    // OCR이면 미리보기 간단 표시(있을 때)
+    // if (data?.ocr_preview) {
+    //   const p = data.ocr_preview;
+    //   const toPct = (x:number)=> (x*100).toFixed(1)+'%';
+    //   alert([
+    //     'OCR 미리보기(자동 감지됨)',
+    //     `변경률: ${toPct(p.changed_ratio)}`,
+    //     '',
+    //     '[RAW]',
+    //     p.raw_preview,
+    //     '',
+    //     '[FIXED]',
+    //     p.fixed_preview,
+    //   ].join('\n'));
+    // }
 
     // 성공 → 상위(App) 콜백으로 탭 전환 + subject 전달
     onUploaded(subject.subject_id);
@@ -74,19 +96,23 @@ return (
                 </span>
                 학습 자료 업로드
             </div>
-        <div className="sa-card__actions">
-          <button
-            className="sa-btn ghost"
-            onClick={() => requireLogin(() => setOpenSubject(true))}
-          >
+        {/* 카드 헤더 우측에 자료 유형 토글 */}
+        <div className="sa-card__actions" style={{gap:8}}>
+          <button className="sa-btn ghost" onClick={() => requireLogin(() => setOpenSubject(true))}>
             {subject ? `선택된 과목: ${subject.name}` : "과목 선택"}
           </button>
         </div>
       </div>
 
       <p className="sa-card__desc">
-        PDF, 이미지, 문서 파일을 업로드하여 AI가 자동으로 분석합니다
+        PDF, 이미지, 텍스트를 업로드하면 AI가 자동으로 형식을 감지해 분석합니다.
       </p>
+      {/* ✅ 보충 설명: 3가지 자동 인식 형식 */}
+      <div className="sa-hint">
+        <div className="sa-hint__item"> <b>PDF</b> — 슬라이드/교안 PDF 올리면 끝!</div>
+        <div className="sa-hint__item"> <b>텍스트</b> — 긴 글은 붙여넣기 또는 .txt 업로드</div>
+        <div className="sa-hint__item"> <b>사진</b> — 노트 사진(JPG·PNG)도 자동 글자 변환</div>
+      </div>
 
       {/* 드롭존: 파일 선택 여부에 따라 UI 전환 */}
       <div
@@ -99,7 +125,7 @@ return (
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          accept={ACCEPT_ALL}
           onChange={(e) => setFile(e.target.files?.[0] || undefined)}
           style={{ display: "none" }}
         />
@@ -109,16 +135,6 @@ return (
           <div className="sa-dropzone__inner">
             <div className="sa-upload-badge--svg">
                 <IconUploadBadge/>
-              {/* <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M12 16V8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-                <path
-                  d="M8.5 11.5L12 8l3.5 3.5"
-                  stroke="#fff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg> */}
             </div>
             
             <div className="sa-dropzone__title">파일을 여기엔 드래그하거나</div>
@@ -164,7 +180,7 @@ return (
             </div>
 
             <div className="sa-dropzone__meta">
-              <span>• PDF, DOC, TXT</span>
+              <span>• PDF, TXT</span>
               <span>• JPG, PNG</span>
               <span>• 최대 10MB</span>
             </div>

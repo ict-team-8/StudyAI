@@ -27,6 +27,10 @@ from services.ai_service_global import _EMBEDDINGS, clean_text, split_to_chunks
 from models.document_domain import DocumentTable
 from models.vector_domain import VectorIndexTable, VectorDocTable
 
+# OCR 업로드용 서비스 로직  추가
+from services.ocr_service import ocr_image_bytes, llm_light_fix, build_preview
+import mimetypes
+
 # ============================================================
 # 저장 경로 설정
 # ============================================================
@@ -118,6 +122,10 @@ def _ensure_chroma(index_row: VectorIndexTable) -> Chroma:
             embedding_function=_EMBEDDINGS,
         )
 
+# 모드 판정용 헬퍼 함수
+def _guess_is_image(upload: UploadFile) -> bool:
+    mt = (upload.content_type or mimetypes.guess_type(upload.filename or "")[0] or "")
+    return mt.startswith("image/")
 
 # ============================================================
 # 메인: 업로드 처리 → 인덱싱 → 상태/통계 업데이트
@@ -129,6 +137,8 @@ async def handle_upload(
     subject_id: int,            # 사용자가 선택/생성한 과목 ID
     file: UploadFile | None,    # PDF 파일(멀티파트) - file 또는 text 중 하나는 필수
     text: str | None,           # 긴 텍스트(문서 없이 직접 입력)
+    parse_mode: str = "auto",           # "auto" | "pdf" | "text" | "ocr"
+    debug_preview: bool = False,
 ) -> dict:
     """
     업로드 요청 1건을 처리한다.
@@ -145,18 +155,21 @@ async def handle_upload(
         raise HTTPException(422, "subject_id is required")
     if not file and not text:
         raise HTTPException(422, "file or text is required")
-
-    # -------- 1) documents INSERT --------
-    # 업로드 타입/제목 결정
-    if file:
-        # 파일 이름은 경로 제거(보안/OS 차이 방지). 예) "React.pdf"
-        title = (file.filename or "PDF").rsplit("/", 1)[-1]
-        source_type = "PDF"
+    
+    # -------- mode 결정 -------
+    if parse_mode in ("pdf", "text", "ocr"):
+        mode = parse_mode
     else:
-        title = "긴 텍스트"
-        source_type = "TEXT"
-
-    # DB에 문서 메타 먼저 기록 (status='uploaded')
+        if file and _guess_is_image(file):
+            mode = "ocr"
+        elif file:
+            mode = "pdf"
+        else:
+            mode = "text"
+    
+    # ------- DB에 문서 메타 먼저 기록 (status = 'uploaded') -------
+    title = (file.filename.rsplit("/", 1)[-1] if file else "긴 텍스트") or "자료"
+    source_type = {"pdf":"PDF","text":"TEXT","ocr":"OCR"}[mode]
     doc = DocumentTable(
         user_id=user_id,
         subject_id=subject_id,
@@ -165,27 +178,45 @@ async def handle_upload(
         status="uploaded",
     )
     session.add(doc)
-    await session.flush()     # document_id 확보(아래 파일명/메타에 사용)
+    await session.flush()     # document_id 확보(아래 파일명/메타에 사용)  
+
 
     # -------- 2) 파싱 → 정제 → 분할 --------
     plain: List[str]
     saved_path: Optional[str] = None
+    preview = None  # 디버그용 미리보기 응답 포함 여부
 
-    if file:
-        # (a) 업로드 파일을 서버 디스크에 보관
-        #     나중에 재처리/감사/디버깅을 위해 원본을 남겨둔다.
+    if mode == "pdf":
+        # 파일 저장
         saved_path = os.path.join(UPLOAD_ROOT, f"{doc.document_id}_{title}")
+        raw = await file.read()
         with open(saved_path, "wb") as f:
-            f.write(await file.read())
-        
-        # (b) PDF → 텍스트 리스트
+            f.write(raw)
+
+        # PDF → 텍스트 리스트
         plain = await _load_plain_from_file(saved_path)
-    else:
-        # (c) 직접 입력된 긴 텍스트 1건
+
+    elif mode == "ocr":
+        # 파일 저장
+        saved_path = os.path.join(UPLOAD_ROOT, f"{doc.document_id}_{title}")
+        raw = await file.read()
+        with open(saved_path, "wb") as f:
+            f.write(raw)
+
+        # 이미지 → OCR
+        raw_txt = ocr_image_bytes(raw, lang="kor+eng")
+        fixed_txt = llm_light_fix(raw_txt) if raw_txt.strip() else raw_txt
+
+        # (선택) 미리보기
+        if debug_preview:
+            preview = build_preview(raw_txt, fixed_txt)
+
+        plain = [fixed_txt]
+
+    else:  # mode == "text"
         plain = [clean_text(text or "")]
 
-    if not plain:
-        # 텍스트 아무 것도 못 뽑았으면 실패
+    if not any(p.strip() for p in plain):
         raise HTTPException(400, "No text extracted.")
 
     # 텍스트 해시 기록(옵션)
@@ -215,6 +246,7 @@ async def handle_upload(
                     "document_id": doc.document_id,
                     "source": title,        # ← 파일명/제목으로
                     "page": i + 1,          # ← 페이지 느낌으로라도 넣기
+                    "source_type": source_type,   # ← 메타에도 타입 기록(분석/필터용)
                 },
             )
         )
@@ -249,13 +281,18 @@ async def handle_upload(
     vindex.doc_count = (vindex.doc_count or 0) + 1
     vindex.chunk_count = (vindex.chunk_count or 0) + chunk_count
     vindex.updated_at = datetime.utcnow()
-
     await session.commit()
 
-    return {
+    # 응답 (미리보기는 요청 시에만)
+    resp = {
         "document_id": doc.document_id,
         "subject_id": subject_id,
         "vector_index_id": vindex.vector_index_id,
-        "chunks": chunk_count,
+        "chunks": len(chunks),
         "indexed": True,
+        "source_type": source_type,
     }
+    if preview:
+        resp["ocr_preview"] = preview
+
+    return resp

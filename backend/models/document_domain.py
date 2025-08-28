@@ -5,7 +5,7 @@ from sqlalchemy import String, ForeignKey, Enum as SAEnum, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from routers.auth import Base, UserTable  # 재사용
 
-SourceType = SAEnum("PDF", "TEXT", name="source_type")
+SourceType = SAEnum("PDF", "TEXT", "OCR", name="source_type")
 DocStatus  = SAEnum("uploaded", "parsed", "indexed", name="document_status")
 
 class DocumentTable(Base):
