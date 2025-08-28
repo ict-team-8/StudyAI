@@ -237,6 +237,12 @@
     transition: all 0.2s ease;
 }
 
+.qp-btn--submit {
+    background-color: #2563eb; /* 파란색 */
+    color: white;
+    font-weight: bold;
+}
+
 .qp-btn--primary {
     background: #667eea;
     color: white;

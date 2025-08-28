@@ -226,7 +226,7 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                 </div>
             </section>
             {/* 문제 생성 후 결과가 있으면 문제 풀이 컴포넌트 렌더링 */}
-            {result && <QuizPlayer quiz={result} />}
+            {result && <QuizPlayer quiz={result.quiz} quizAttemptId={result.quiz_attempt_id} />}
 
             {/* 과목 선택 모달 (API 내부에서 불러오는 구현이면 그대로 사용) */}
             <SubjectModal
