@@ -92,7 +92,7 @@ export default function App() {
     }
 
     if (next === 'gen') {
-        if (!subjectId) { alert('먼저 자료를 업로드하세요.'); return; }
+       // if (!subjectId) { alert('먼저 자료를 업로드하세요.'); return; } -- 개발시에 잠깐 없애기
         setView('gen');
         return;
     }
