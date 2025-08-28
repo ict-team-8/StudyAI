@@ -24,7 +24,7 @@ export type QuizSet = {
 type Props = {
     quiz: QuizSet;
     quizAttemptId: number;
-    onComplete?: () => void; // ✅ 콜백 props
+    onComplete?: (attemptId: number) => void; // ✅ 콜백 props
 };
 
 type UserAnswer = {
@@ -69,12 +69,15 @@ export default function QuizPlayer({ quiz, quizAttemptId, onComplete }: Props) {
 
     const handleComplete = async () => {
         try {
-            await api.post('/quiz/complete', {
+            const res = await api.post('/quiz/complete', {
                 quiz_attempt_id: quizAttemptId,
-                finished_at: new Date().toISOString(), // 서버에서 UTC로 처리 가능
+                finished_at: new Date().toISOString(),
             });
             alert('퀴즈 풀이가 완료되었습니다!');
-            if (onComplete) onComplete(); // ✅ 부모(App)에서 전달한 콜백 실행
+            // ✅ API 응답에서 attemptId를 가져오고, 부모 콜백 실행
+            const attemptId = res.data?.data?.quiz_attempt_id ?? quizAttemptId;
+
+            if (onComplete) onComplete(attemptId); // ✅ 부모(App)에서 전달한 콜백 실행
         } catch (err) {
             console.error('퀴즈 제출 실패', err);
         }
@@ -115,7 +118,6 @@ export default function QuizPlayer({ quiz, quizAttemptId, onComplete }: Props) {
                 quiz_attempt_id: quizAttemptId, // 부모 컴포넌트에서 props로 받아야 함
                 question_bank_id: current.id, // 현재 문항 id
                 user_answer: String(ua.value ?? ''),
-                time_ms: 0, // ms 단위 (추후 측정 가능)
             });
         } catch (err) {
             console.error('풀이 저장 실패', err);

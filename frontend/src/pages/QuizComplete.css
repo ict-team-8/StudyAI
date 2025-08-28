@@ -1,0 +1,425 @@
+.qc-container {
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+/* 상단 요약 섹션 */
+.qc-summary {
+    padding: 20px;
+    max-width: 100%;
+    margin: 24px 0;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.qc-summary h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.qc-summary h2::before {
+    content: '🎉';
+    display: block;
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.qc-summary h2::after {
+    content: '문제 풀이 완료!';
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 8px 0;
+}
+
+.qc-summary::after {
+    content: '총 4문제 중 0문제를 맞히셨습니다';
+    display: block;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.qc-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+    text-align: center;
+}
+
+.qc-metrics > div {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e9ecef;
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* 등급 카드 */
+.qc-metrics > div:nth-child(4) {
+    border-left: 4px solid #dc3545;
+}
+
+.qc-metrics > div:nth-child(4)::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+/* 정답 개수 카드 */
+.qc-metrics > div:nth-child(1) {
+    border-left: 4px solid #28a745;
+}
+
+.qc-metrics > div:nth-child(1)::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #28a745;
+}
+
+/* 정답률 카드 */
+.qc-metrics > div:nth-child(2) {
+    border-left: 4px solid #007bff;
+}
+
+.qc-metrics > div:nth-child(2)::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+/* 소요 시간 카드 */
+.qc-metrics > div:nth-child(3) {
+    border-left: 4px solid #9c27b0;
+}
+
+.qc-metrics > div:nth-child(3)::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #9c27b0;
+}
+
+/* 실제 값들을 위한 스타일 - JavaScript로 동적 설정 */
+.qc-metrics > div {
+    padding-top: 50px; /* 숫자 공간 확보 */
+}
+
+.qc-grade {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    display: inline-block;
+}
+
+.qc-grade--A {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qc-grade--B {
+    background: #cce7ff;
+    color: #004085;
+}
+
+.qc-grade--C {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.qc-grade--D {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.qc-grade--F {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* 다시 풀어보기 버튼 */
+.qc-retry-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 20px auto;
+    display: block;
+    transition: background 0.2s ease;
+}
+
+.qc-retry-btn::before {
+    content: '📝 ';
+    margin-right: 8px;
+}
+
+.qc-retry-btn:hover {
+    background: #0056b3;
+}
+
+/* 문제 복습 섹션 */
+.qc-review {
+    margin-top: 40px;
+}
+
+.qc-review h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.qc-review::before {
+    content: '각 문제의 답변 입력과 해설을 확인하세요';
+    display: block;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.qc-question {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e9ecef;
+    position: relative;
+}
+
+.qc-question.qc-correct {
+    border-left: 4px solid #28a745;
+}
+
+.qc-question.qc-correct::before {
+    content: '✓';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.qc-question.qc-wrong {
+    border-left: 4px solid #dc3545;
+}
+
+.qc-question.qc-wrong::before {
+    content: '✗';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #dc3545;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.qc-qmeta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.qc-qmeta span:first-child {
+    background: #6c63ff;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qc-diff {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.qc-diff--상 {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.qc-diff--중 {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.qc-diff--하 {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.qc-stem {
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.qc-answer,
+.qc-correct-answer {
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.qc-answer strong,
+.qc-correct-answer strong {
+    color: #666;
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+.qc-answer {
+    color: #666;
+}
+
+.qc-correct-answer {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.qc-explain {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #555;
+    border-left: 3px solid #6c63ff;
+    margin-top: 16px;
+}
+
+.qc-explain strong {
+    color: #6c63ff;
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+/* 로딩 상태 */
+.qc-container:has-text('결과를 불러오는 중') {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50vh;
+    font-size: 18px;
+    color: #666;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .qc-container {
+        padding: 16px;
+    }
+
+    .qc-metrics {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .qc-metrics > div {
+        padding: 16px 16px 20px 16px;
+        min-height: 70px;
+    }
+
+    .qc-metrics > div {
+        padding-top: 45px;
+    }
+
+    .qc-question {
+        padding: 20px;
+    }
+
+    .qc-qmeta {
+        flex-wrap: wrap;
+    }
+
+    .qc-summary h2::before {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+}
+
+/* 동적 콘텐츠를 위한 JavaScript 연동 헬퍼 클래스들 */
+.qc-metric-value {
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.qc-metric-value--grade {
+    color: #dc3545;
+}
+
+.qc-metric-value--correct {
+    color: #28a745;
+}
+
+.qc-metric-value--accuracy {
+    color: #007bff;
+}
+
+.qc-metric-value--time {
+    color: #9c27b0;
+}

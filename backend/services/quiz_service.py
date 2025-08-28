@@ -32,7 +32,6 @@ class NextRequest(BaseModel):
     quiz_attempt_id: int        # 세트 단위 시도 id
     question_bank_id: int       # 푼 문항 id (AttemptItemTable 기준)
     user_answer: str            # 사용자가 제출한 답
-    time_ms: int                # 소요 시간 (ms 단위)
 
 class CompleteRequest(BaseModel):
     quiz_attempt_id: int
@@ -67,6 +66,15 @@ def _load_chroma(index_row: VectorIndexTable) -> Chroma:
         embedding_function=_EMBEDDINGS,
     )
 
+def _calc_grade(accuracy: float) -> str:
+    if accuracy >= 90:
+        return "A"
+    elif accuracy >= 75:
+        return "B"
+    elif accuracy >= 50:
+        return "C"
+    else:
+        return "D"
 
 # ========= [1] 출력 스키마 =========
 class QuizQuestion(BaseModel):
@@ -172,8 +180,13 @@ class QuizGenerator:
 - citations: {{ "source": "{source}" }}
 - id에는 {qid} 입력
 
-CONTEXT:
+아래 제공된 CONTEXT(본문 내용) 안에서만 문제를 만드세요.
+- 절대로 "CONTEXT에서 무엇을 언급했나요?" 같은 메타 질문을 하지 마세요.
+- 반드시 CONTEXT 안의 실제 지식을 기반으로 출제하세요.
+
+[CONTEXT 시작]
 {context}
+[CONTEXT 끝]
 """
         return structured.invoke(prompt)
 
@@ -182,6 +195,7 @@ CONTEXT:
     self,
     user_type: Union[str, List[str]],
     user_difficulty: str,
+    docs: List["DocumentTable"],
     n_questions: int = 5,
     random_seed: Optional[int] = None,
 ) -> QuizSet:
@@ -194,40 +208,59 @@ CONTEXT:
         else:
             qtypes = [self._normalize_type(t) for t in user_type or []]
         diff = self._normalize_diff(user_difficulty)
+        
+        # ✅ VectorDB에서 전체 chunk 로드
+        all_data = self.vdb.get(include=["documents", "metadatas"])
+        documents = all_data.get("documents", [])
+        metadatas = all_data.get("metadatas", [])
+
+        if not documents:
+            raise HTTPException(500, "VectorDB에 저장된 context가 없습니다. 자료를 업로드해주세요.")
+
+        # ✅ 사용자가 선택한 document_id만 필터링
+        allowed_doc_ids = [d.document_id for d in docs]
+        filtered = [
+            (doc, meta) for doc, meta in zip(documents, metadatas)
+            if meta and meta.get("document_id") in allowed_doc_ids
+        ]
+        
+        if not filtered:
+            raise HTTPException(500, "선택된 자료에서 context를 찾을 수 없습니다.")
 
         items: List[QuizQuestion] = []
-        for qid in range(1, n_questions + 1):
-            
+        max_trials = n_questions * 5  # 안전장치 (예: 5배 시도 후 중단)
+        trials = 0
+
+        while len(items) < n_questions and trials < max_trials:
+            trials += 1
             qtype = random.choice(qtypes)   # ✅ 여러 유형 중 랜덤 선택
             
-            # retriever로 랜덤 시드 쿼리 (ex: "sample") → 임의 문서 가져오기
-            seed_docs = self.retriever.get_relevant_documents("sample")
-            if not seed_docs:
-                raise HTTPException(500, "No documents found in vector index.")
+            # ✅ 선택된 문서 chunk 중 랜덤 선택
+            doc, meta = random.choice(filtered)
+            context = (doc or "").strip()
+            if len(context) < 50:   # 너무 짧으면 무시
+                continue
 
-            seed = random.choice(seed_docs)
+            context = context[:1000]  # 잘라내기
 
-            retrieved = self.retriever.get_relevant_documents(seed.page_content[:200])
-            picked = (
-                retrieved[:self.sample_span]
-                if len(retrieved) >= self.sample_span
-                else retrieved or [seed]
-            )
-
-            context = "\n\n".join(d.page_content for d in picked)
-
-            # LLM 호출해서 문항 생성
             item = self._gen_one(
-                qid=qid, qtype=qtype, difficulty=diff, context=context, source=self.source
+                qid=len(items) + 1,   # ⚠️ 현재까지 추가된 개수 기준
+                qtype=qtype,
+                difficulty=diff,
+                context=context,
+                source=self.source,
             )
 
             # 객관식 옵션 검증
             if qtype == "객관식" and (not item.options or len(item.options) != 4):
-                item = self._gen_one(
-                    qid=qid, qtype=qtype, difficulty=diff, context=context, source=self.source
-                )
+                continue
 
             items.append(item)
+            
+        if len(items) < n_questions:
+            raise HTTPException(
+                500, f"요청한 {n_questions}문제 중 {len(items)}문제만 생성되었습니다."
+    )
 
         return QuizSet(source=self.source, items=items)
 
@@ -238,6 +271,7 @@ async def generate_quiz_for_subject(
     *,
     user_id: str,
     subject_id: int,
+    doc_ids: Optional[List[int]] = None,
     qtype: Union[str, List[str]],
     difficulty: str,
     num_questions: int,
@@ -251,8 +285,17 @@ async def generate_quiz_for_subject(
     # 1. 인덱스 로드
     vindex = await _get_vector_index(session, user_id, subject_id)
     temp_vectordb = _load_chroma(vindex)
-        
-    source_name = f"subject-{subject_id} ({vindex.collection_name})"
+            
+    # ✅ 선택된 문서 메타 조회 (VectorDB 필터용)
+    q = select(DocumentTable).where(DocumentTable.subject_id == subject_id)
+    if doc_ids:
+        q = q.where(DocumentTable.document_id.in_(doc_ids))  # ⚠️ PK 이름 확인
+    docs = (await session.execute(q)).scalars().all()
+    
+    if not docs:
+        raise HTTPException(404, "선택된 자료가 없습니다.")
+
+    source_name = ", ".join(d.title for d in docs)
 
     # 3) LLM 초기화 & 문제 생성
     gen = QuizGenerator(
@@ -263,7 +306,7 @@ async def generate_quiz_for_subject(
                 retriever_k=6,
                 sample_span=2,
             )
-    quiz_set = gen.generate(user_type=qtype, user_difficulty=difficulty, n_questions=num_questions)
+    quiz_set = gen.generate(user_type=qtype, user_difficulty=difficulty, docs=docs, n_questions=num_questions)
 
     # 4) QuizTable 저장
     new_quiz = QuizTable(
@@ -318,6 +361,13 @@ async def generate_quiz_for_subject(
 }
 
 
+from difflib import SequenceMatcher
+
+def normalize(text: str) -> str:
+    return (text or "").strip().lower().replace(" ", "")
+
+def similar(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio()
 
 
 
@@ -332,19 +382,33 @@ async def save_next_attempt(session: AsyncSession, req: NextRequest, user_id: st
         raise HTTPException(status_code=404, detail="문항을 찾을 수 없습니다.")
 
     # 2. 채점 (단순 문자열 비교 — 필요하면 정규화/대소문자 무시 등 보강 가능)
-    is_correct = (req.user_answer.strip() == (question.correct_text or "").strip())
+    qtype = question.qtype
+    correct_text = (question.correct_text or "").strip()
 
-    # 3. 점수 (객관식 1점 기준, 추후 확장 가능)
-    score = 1.0 if is_correct else 0.0
+    if qtype == "객관식":
+        # user_answer가 index일 수 있으므로 처리
+        try:
+            # JSON 필드로 저장된 options에서 choices 꺼내오기
+            options = question.options.get("choices") if question.options else []
+            user_idx = int(req.user_answer) if str(req.user_answer).isdigit() else -1
+            user_text = options[user_idx] if 0 <= user_idx < len(options) else req.user_answer
+        except Exception:
+            user_text = req.user_answer
 
+        is_correct = normalize(user_text) == normalize(correct_text)
+
+    elif qtype == "단답형":
+        is_correct = normalize(req.user_answer) == normalize(correct_text)
+
+    else:  # 주관식
+        is_correct = similar(normalize(req.user_answer), normalize(correct_text)) >= 0.7
+        
     # 4. DB 저장
     attempt_item = AttemptItemTable(
         quiz_attempt_id=req.quiz_attempt_id,
         question_bank_id=req.question_bank_id,
         user_answer=req.user_answer,
         is_correct=is_correct,
-        score=score,
-        time_ms=req.time_ms,
         created_at=datetime.utcnow(),
     )
     session.add(attempt_item)
@@ -356,8 +420,6 @@ async def save_next_attempt(session: AsyncSession, req: NextRequest, user_id: st
         "question_bank_id": attempt_item.question_bank_id,
         "user_answer": attempt_item.user_answer,
         "is_correct": attempt_item.is_correct,
-        "score": attempt_item.score,
-        "time_ms": attempt_item.time_ms,
     }
     
     
@@ -386,15 +448,14 @@ async def save_complete_attempt(session: AsyncSession, req: CompleteRequest, use
     correct = correct or 0
 
     # 3. 정답률/점수 계산
-    accuracy = (correct / total * 100.0) if total > 0 else 0.0
-    score = correct  # 일단 정답 개수 = 점수, 필요시 가중치 반영 가능
+    accuracy = (int(correct) / int(total) * 100.0) if total > 0 else 0.0
 
     # 4. QuizAttemptTable 업데이트
     attempt.finished_at = parser.isoparse(req.finished_at) if req.finished_at else datetime.utcnow()
     attempt.correct_count = correct
     attempt.total_count = total
     attempt.accuracy = accuracy
-    attempt.score = score
+    attempt.grade = _calc_grade(accuracy)   # ✅ 등급 계산 후 저장
 
     await session.commit()
     await session.refresh(attempt)
@@ -409,5 +470,58 @@ async def save_complete_attempt(session: AsyncSession, req: CompleteRequest, use
         "total_count": attempt.total_count,
         "correct_count": attempt.correct_count,
         "accuracy": attempt.accuracy,
-        "score": attempt.score,
     }   
+    
+    
+async def fetch_quiz_attempt_detail(session: AsyncSession, attempt_id: int, user_id: str):
+    # 1) QuizAttemptTable 확인
+    q = await session.execute(
+        select(QuizAttemptTable).where(
+            QuizAttemptTable.quiz_attempt_id == attempt_id,
+            QuizAttemptTable.user_id == user_id
+        )
+    )
+    attempt = q.scalar_one_or_none()
+    if not attempt:
+        raise HTTPException(404, "해당 퀴즈 시도를 찾을 수 없습니다.")
+
+    # 2) AttemptItemTable + QuestionBankTable join
+    q2 = await session.execute(
+        select(
+            AttemptItemTable.attempt_item_id,
+            AttemptItemTable.user_answer,
+            AttemptItemTable.is_correct,
+            QuestionBankTable.question_bank_id,
+            QuestionBankTable.stem,
+            QuestionBankTable.correct_text,
+            QuestionBankTable.explanation,
+            QuestionBankTable.difficulty,
+        )
+        .join(QuestionBankTable, AttemptItemTable.question_bank_id == QuestionBankTable.question_bank_id)
+        .where(AttemptItemTable.quiz_attempt_id == attempt_id)
+    )
+    items = [
+        {
+            "question_id": row.question_bank_id,
+            "stem": row.stem,
+            "user_answer": row.user_answer,
+            "correct_answer": row.correct_text,
+            "is_correct": row.is_correct,
+            "explanation": row.explanation,
+            "difficulty": row.difficulty,
+        }
+        for row in q2
+    ]
+
+    # 3) 집계된 결과 반환
+    return {
+        "quiz_attempt_id": attempt.quiz_attempt_id,
+        "quiz_id": attempt.quiz_id,
+        "started_at": attempt.started_at,
+        "finished_at": attempt.finished_at,
+        "total_count": attempt.total_count,
+        "correct_count": attempt.correct_count,
+        "accuracy": attempt.accuracy,
+        "grade": attempt.grade,
+        "items": items,
+    }

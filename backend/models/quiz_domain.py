@@ -125,9 +125,9 @@ class QuizAttemptTable(Base):
     started_at:      Mapped[datetime]   = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     finished_at:     Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    total_count : Mapped[int]        = mapped_column(Integer, default=0, nullable=False)     # 총 문제수
     correct_count:   Mapped[int]        = mapped_column(Integer, default=0, nullable=False)  # 정답 개수
     accuracy:        Mapped[float]      = mapped_column(Float, default=0.0, nullable=False)  # 정확도(0~1 또는 0~100)
-    score_total:     Mapped[float]      = mapped_column(Float, default=0.0, nullable=False)  # 총점(옵션)
     grade:           Mapped[str | None] = mapped_column(GradeEnum, nullable=True)            # 등급(A~F 등)
 
     created_at:      Mapped[datetime]   = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
@@ -156,8 +156,6 @@ class AttemptItemTable(Base):
 
     user_answer:      Mapped[str | None]= mapped_column(Text, nullable=True)   # 사용자가 제출한 답
     is_correct:       Mapped[bool]      = mapped_column(Boolean, default=False, nullable=False)  # 정답 여부
-    score:            Mapped[float]     = mapped_column(Float, default=0.0, nullable=False)      # 문항 점수(옵션)
-    time_ms:          Mapped[int]       = mapped_column(Integer, default=0, nullable=False)      # 풀이 소요 시간(ms)
 
     created_at:       Mapped[datetime]  = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 

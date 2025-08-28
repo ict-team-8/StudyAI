@@ -10,15 +10,17 @@ import SmartQA from './pages/SmartQA';
 import GenerateQuiz from './pages/GenerateQuiz';
 import QuizPlayer from './pages/QuizPlayer';
 import Analytics from './pages/Analytics';
+import QuizComplete from './pages/QuizComplete';
 
 export default function App() {
     // 현재 활성 탭 상태 (초기값: 자료 업로드)
     //const [tab, setTab] = useState<TabKey>('upload');
     // Tab -> View로 변환
-    type View = 'upload' | 'summary' | 'qa' | 'gen' | 'solve' | 'analytics';
+    type View = 'upload' | 'summary' | 'qa' | 'gen' | 'solve' | 'complete' | 'analytics';
     const [view, setView] = useState<View>('upload');
 
     const [quizResult, setQuizResult] = useState<any | null>(null);
+    const [attemptId, setAttemptId] = useState<number | null>(null); // ✅ 푼 시도 id
     const [subjectId, setSubjectId] = useState<number | null>(null);
 
     // 업로드 완료 콜백: subjectId 기억하고, 요약 탭으로 전환
@@ -36,7 +38,7 @@ export default function App() {
             ? 'qa'
             : view === 'gen'
             ? 'gen'
-            : view === 'solve'
+            : view === 'solve' || view === 'complete'
             ? 'solve'
             : 'analytics';
 
@@ -66,12 +68,24 @@ export default function App() {
                     />
                 );
             case 'solve':
-                return quizResult ? (
-                    <QuizPlayer quiz={quizResult.quiz} quizAttemptId={quizResult.quiz_attempt_id} onComplete={() => setView('analytics')}   // ✅ 제출 후 analytics로 이동
-                     />
-                ) : (
-                    <Placeholder title="문제풀이" />
+                if (!quizResult) {
+                    alert('먼저 문제를 생성하세요.');
+                    return null; // ✅ 화면에 아무 것도 렌더링하지 않음
+                }
+                return (
+                    <QuizPlayer
+                        quiz={quizResult.quiz}
+                        quizAttemptId={quizResult.quiz_attempt_id}
+                        onComplete={(id) => {
+                            setAttemptId(id); // ✅ 푼 attemptId 저장
+                            setView('complete'); // ✅ 제출 후 complete 화면으로 이동
+                        }}
+                    />
                 );
+
+            case 'complete':
+                return attemptId ? <QuizComplete attemptId={attemptId} /> : <Placeholder title="결과 화면" />;
+
             case 'analytics':
                 return <Analytics subjectId={subjectId} onPickSubject={(id) => setSubjectId(id ?? null)}></Analytics>;
         }
@@ -95,15 +109,16 @@ export default function App() {
         }
 
         if (next === 'gen') {
-            if (!subjectId) {
-                alert('먼저 자료를 업로드하세요.');
-                return;
-            }
+            // if (!subjectId) { alert('먼저 자료를 업로드하세요.'); return; } -- 개발시에 잠깐 없애기
             setView('gen');
             return;
         }
 
         if (next === 'solve') {
+            if (!quizResult) {
+                alert('먼저 문제를 생성하세요.');
+                return;
+            }
             setView('solve');
             return;
         }

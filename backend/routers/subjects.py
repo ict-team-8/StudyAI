@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import String, select, func, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
+from models.document_domain import DocumentTable  
 
 
 from services.subject_service import get_or_create_subject, list_subjects
@@ -62,6 +63,14 @@ async def get_subjects(
 ):
     subjects = await list_subjects(session, user.id, q)
     return subjects
+
+@router.get("/subjects/{subject_id}/documents")
+async def list_documents(subject_id: int, session: AsyncSession = Depends(get_session)):
+    q = await session.execute(
+        select(DocumentTable).where(DocumentTable.subject_id == subject_id)
+    )
+    docs = [{"id": row.document_id, "title": row.title} for row in q.scalars().all()]
+    return docs
 
 # # 초기 개발 편의: 테이블 자동 생성
 # @router.on_event("startup")

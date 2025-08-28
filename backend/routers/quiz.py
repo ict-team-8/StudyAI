@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from routers.auth import get_session, Base, engine, current_active_user, UserTable 
-from services.quiz_service import generate_quiz_for_subject, save_next_attempt, save_complete_attempt
+from services.quiz_service import generate_quiz_for_subject, save_next_attempt, save_complete_attempt, fetch_quiz_attempt_detail
 
 router = APIRouter()
 
@@ -23,7 +23,6 @@ class NextRequest(BaseModel):
     quiz_attempt_id: int        # 세트 단위 시도 id
     question_bank_id: int       # 푼 문항 id (AttemptItemTable 기준)
     user_answer: str            # 사용자가 제출한 답
-    time_ms: int                # 소요 시간 (ms 단위)
     
 class CompleteRequest(BaseModel):
     quiz_attempt_id: int
@@ -78,6 +77,16 @@ async def quiz_complete_api(
 ):
     result = await save_complete_attempt(session, req, user.id)
     return {"status": "success", "data": result}
+
+@router.get("/attempt/{attempt_id}")
+async def get_quiz_attempt_detail(
+    attempt_id: int,
+    user: UserTable = Depends(current_active_user),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await fetch_quiz_attempt_detail(session, attempt_id, user.id)
+    return {"status": "success", "data": result}
+
 
 
 # # 초기 개발 편의: 테이블 자동 생성 
