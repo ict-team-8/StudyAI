@@ -38,6 +38,8 @@ async def upload_document(
         parse_mode=parse_mode,
         debug_preview=debug_preview, 
     )
+    
+
 
 # (개발용) 테이블 생성
 # @router.on_event("startup")

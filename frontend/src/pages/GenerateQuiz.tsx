@@ -6,6 +6,7 @@ import './GenerateQuiz.css';
 import QuizPlayer from './QuizPlayer.tsx';
 
 type Subject = { subject_id: number; name: string };
+type Material = { id: number; title: string };
 type QuestionType = '객관식' | '단답형' | '주관식';
 type Difficulty = '쉬움' | '보통' | '어려움';
 
@@ -13,12 +14,13 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
     const [subject, setSubject] = useState<Subject | null>(null);
     const [openSubject, setOpenSubject] = useState(false);
 
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null);
+
     const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<QuestionType[]>([]);
     const [difficulty, setDifficulty] = useState<Difficulty>('보통');
     const [questionCount, setQuestionCount] = useState(5);
 
-    // 자료 선택(백엔드는 현재 subject_id만 사용)
-    const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null);
     const [showDifficultyDropdown, setShowDifficultyDropdown] = useState(false);
     const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
 
@@ -50,8 +52,18 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
         }
     };
 
-    // ⚠️ 백엔드가 subject만 요구 → 자료 선택은 검증 대상에서 제외
     const isFormValid = () => subject && selectedQuestionTypes.length > 0 && difficulty && questionCount > 0;
+
+    // ✅ 과목에 해당하는 자료 목록 불러오기
+    const fetchMaterials = async (subjectId: number) => {
+        try {
+            const { data } = await api.get(`/subjects/${subjectId}/documents`);
+            setMaterials(data);
+        } catch (err) {
+            console.error('자료 목록 불러오기 실패', err);
+            setMaterials([]);
+        }
+    };
 
     const handleGenerateQuiz = async () => {
         if (!isFormValid()) {
@@ -67,14 +79,14 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
         try {
             const payload = {
                 subject_id: subject.subject_id,
-                qtype: selectedQuestionTypes, // "객관식, 주관식" 형태로 전달
+                qtype: selectedQuestionTypes,
                 difficulty,
                 num_questions: questionCount,
-                // model_name: 'gemini-1.5-flash', // 필요 시 옵션
+                doc_ids: selectedMaterial ? [selectedMaterial] : undefined, // ✅ 선택 자료 반영
             };
 
             const { data } = await api.post('/quiz/generate', payload);
-            setResult(data); // QuizSet { source, items: [...] }
+            setResult(data);
             onQuiz(data);
         } catch (e: any) {
             const msg = e?.response?.data?.detail || e?.message || '문제 생성 중 오류가 발생했습니다.';
@@ -110,7 +122,7 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                         </button>
                     </div>
 
-                    {/* 문제 유형 선택 */}
+                    {/* 문제 유형 */}
                     <div className="gq-field">
                         <label className="gq-field__label">문제 유형 (중복 선택 가능)</label>
                         <div className="gq-checkbox-group">
@@ -128,7 +140,7 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                         </div>
                     </div>
 
-                    {/* 난이도 선택 */}
+                    {/* 난이도 */}
                     <div className="gq-field">
                         <label className="gq-field__label">난이도</label>
                         <div className="gq-dropdown">
@@ -184,7 +196,7 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                         </div>
                     </div>
 
-                    {/* 자료 선택 (현재 백엔드 미사용) */}
+                    {/* 자료 선택 */}
                     <div className="gq-field">
                         <label className="gq-field__label">자료 선택</label>
                         <div className="gq-dropdown">
@@ -193,12 +205,39 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                                 onClick={() => setShowMaterialDropdown(!showMaterialDropdown)}
                                 disabled={!subject}
                             >
-                                <span className="gq-select-btn__text--placeholder">
-                                    현재는 과목만으로 출제합니다 (추후 document 선택 연동 예정)
+                                <span
+                                    className={
+                                        selectedMaterial
+                                            ? 'gq-select-btn__text--selected'
+                                            : 'gq-select-btn__text--placeholder'
+                                    }
+                                >
+                                    {selectedMaterial
+                                        ? `선택된 자료: ${materials.find((m) => m.id === selectedMaterial)?.title}`
+                                        : subject
+                                        ? '자료를 선택하세요'
+                                        : '먼저 과목을 선택하세요'}
                                 </span>
                                 <ChevronDown className="gq-select-btn__icon" />
                             </button>
-                            {/* 자료 드롭다운은 아직 비워둠 */}
+
+                            {showMaterialDropdown && subject && (
+                                <div className="gq-dropdown__menu">
+                                    {materials.length === 0 && <div className="gq-dropdown__item">자료 없음</div>}
+                                    {materials.map((mat) => (
+                                        <button
+                                            key={mat.id}
+                                            className="gq-dropdown__item"
+                                            onClick={() => {
+                                                setSelectedMaterial(mat.id);
+                                                setShowMaterialDropdown(false);
+                                            }}
+                                        >
+                                            {mat.title}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -225,16 +264,18 @@ export default function GenerateQuiz({ onQuiz }: { onQuiz: (quizData: any) => vo
                     )}
                 </div>
             </section>
-            {/* 문제 생성 후 결과가 있으면 문제 풀이 컴포넌트 렌더링 */}
-            {result && <QuizPlayer quiz={result} />}
 
-            {/* 과목 선택 모달 (API 내부에서 불러오는 구현이면 그대로 사용) */}
+            {/* 문제 생성 후 결과 → 바로 풀이 */}
+            {result && <QuizPlayer quiz={result.quiz} quizAttemptId={result.quiz_attempt_id} />}
+
+            {/* 과목 선택 모달 */}
             <SubjectModal
                 open={openSubject}
                 onClose={() => setOpenSubject(false)}
                 onPick={(selectedSubject) => {
                     setSubject(selectedSubject);
-                    setSelectedMaterial(null); // 과목 변경 시 초기화
+                    setSelectedMaterial(null);
+                    fetchMaterials(selectedSubject.subject_id); // ✅ 과목 변경 시 자료 목록 로드
                 }}
             />
         </>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import api from '../api';
 import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import './QuizPlayer.css';
 
@@ -22,6 +23,8 @@ export type QuizSet = {
 
 type Props = {
     quiz: QuizSet;
+    quizAttemptId: number;
+    onComplete?: (attemptId: number) => void; // ✅ 콜백 props
 };
 
 type UserAnswer = {
@@ -33,7 +36,7 @@ type UserAnswer = {
 
 const normalize = (s: string) => (s ?? '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
 
-export default function QuizPlayer({ quiz }: Props) {
+export default function QuizPlayer({ quiz, quizAttemptId, onComplete }: Props) {
     const { items } = quiz;
 
     // 현재 문항 index
@@ -64,6 +67,22 @@ export default function QuizPlayer({ quiz }: Props) {
         setAnswer(current.id, (prev) => ({ ...prev, value: text, checked: false, correct: undefined }));
     };
 
+    const handleComplete = async () => {
+        try {
+            const res = await api.post('/quiz/complete', {
+                quiz_attempt_id: quizAttemptId,
+                finished_at: new Date().toISOString(),
+            });
+            alert('퀴즈 풀이가 완료되었습니다!');
+            // ✅ API 응답에서 attemptId를 가져오고, 부모 콜백 실행
+            const attemptId = res.data?.data?.quiz_attempt_id ?? quizAttemptId;
+
+            if (onComplete) onComplete(attemptId); // ✅ 부모(App)에서 전달한 콜백 실행
+        } catch (err) {
+            console.error('퀴즈 제출 실패', err);
+        }
+    };
+
     const grade = (q: QuizQuestion, ua: UserAnswer): boolean => {
         if (ua.value === null || ua.value === undefined) return false;
 
@@ -86,10 +105,23 @@ export default function QuizPlayer({ quiz }: Props) {
         return key.length > 0 && userText.includes(key.slice(0, Math.min(8, key.length)));
     };
 
-    const handleCheck = () => {
+    const handleCheck = async () => {
         const ua = answers[current.id] ?? { value: null };
         const ok = grade(current, ua);
+
+        // state 업데이트 (프론트 즉시 표시)
         setAnswer(current.id, (prev) => ({ ...prev, checked: true, correct: ok }));
+
+        // ✅ API 호출해서 서버 저장
+        try {
+            await api.post('/quiz/next', {
+                quiz_attempt_id: quizAttemptId, // 부모 컴포넌트에서 props로 받아야 함
+                question_bank_id: current.id, // 현재 문항 id
+                user_answer: String(ua.value ?? ''),
+            });
+        } catch (err) {
+            console.error('풀이 저장 실패', err);
+        }
     };
 
     const handlePrev = () => setIdx((i) => Math.max(0, i - 1));
@@ -102,7 +134,7 @@ export default function QuizPlayer({ quiz }: Props) {
     }, [answers]);
 
     return (
-        <div className='qp-container'>            
+        <div className="qp-container">
             <section className="qp-card">
                 {/* 헤더 */}
                 <div className="qp-header">
@@ -174,9 +206,18 @@ export default function QuizPlayer({ quiz }: Props) {
                         <button className="qp-btn" onClick={handlePrev} disabled={idx === 0}>
                             <ChevronLeft size={16} /> 이전
                         </button>
-                        <button className="qp-btn" onClick={handleNext} disabled={idx === items.length - 1}>
-                            다음 <ChevronRight size={16} />
-                        </button>
+
+                        {idx === items.length - 1 ? (
+                            // ✅ 마지막 문제 → "제출"
+                            <button className="qp-btn qp-btn--submit" onClick={handleComplete}>
+                                제출
+                            </button>
+                        ) : (
+                            // ✅ 마지막이 아닐 때 → "다음"
+                            <button className="qp-btn" onClick={handleNext}>
+                                다음 <ChevronRight size={16} />
+                            </button>
+                        )}
                     </div>
 
                     {/* 결과 표시 */}

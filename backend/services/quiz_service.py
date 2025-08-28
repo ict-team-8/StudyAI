@@ -9,127 +9,74 @@ import requests
 from pydantic import field_validator
 import json
 from datetime import datetime
+from fastapi import HTTPException
 
-
+from dateutil import parser
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from models.vector_domain import VectorIndexTable 
 from models.document_domain import DocumentTable    # 문서 테이블
 from models.quiz_domain import QuizTable, QuestionBankTable  # 퀴즈 및 문항 테이블
+from models.quiz_domain import AttemptItemTable, QuizAttemptTable  # 문항별 풀이 로그 테이블
+from services.ai_service_global import (
+    _EMBEDDINGS,
+    llm,
+)
+
+class NextRequest(BaseModel):
+    quiz_attempt_id: int        # 세트 단위 시도 id
+    question_bank_id: int       # 푼 문항 id (AttemptItemTable 기준)
+    user_answer: str            # 사용자가 제출한 답
+
+class CompleteRequest(BaseModel):
+    quiz_attempt_id: int
+    finished_at: str | None = None
+
 
 DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
-try:
-    from rank_bm25 import BM25Okapi
-    _HAS_BM25 = True
-except Exception:
-    _HAS_BM25 = False
-
-
-# ========= [1] 텍스트 로딩 유틸 =========
-def _clean_text(t: str) -> str:
-    """
-    HTML 태그 및 불필요한 공백을 정리하여 텍스트를 깨끗하게 만듦
-    """
-    t = re.sub(r"<[^>]+>", " ", t)          # 태그 제거
-    t = re.sub(r"\s+", " ", t).strip()
-    return t
-
-def _load_text_from_path_or_url(path_or_url: str) -> str:
-    """
-    문서 경로 또는 URL로부터 텍스트를 로드
-    - .txt 파일: UTF-8로 읽기
-    - .pdf 파일: PyPDF2로 텍스트 추출
-    - http/https URL: requests로 가져오기
-    """
-    from PyPDF2 import PdfReader
-
-    def _is_url(s: str) -> bool:
-        return s.startswith("http://") or s.startswith("https://")
-
-    # URL 처리
-    if _is_url(path_or_url):
-        r = requests.get(path_or_url, timeout=15)
-        r.raise_for_status()
-        if path_or_url.lower().endswith(".pdf"):
-            # PDF URL → 페이지 텍스트 추출
-            with io.BytesIO(r.content) as bio:
-                reader = PdfReader(bio)
-                pages = [p.extract_text() or "" for p in reader.pages]
-                return _clean_text("\n\n".join(pages))
-        else:
-            return _clean_text(r.text)
-
-    # 로컬 파일 처리
-    if not os.path.exists(path_or_url):
-        raise FileNotFoundError(f"파일을 찾을 수 없습니다: {path_or_url}")
-
-    lower = path_or_url.lower()
-    if lower.endswith(".pdf"):
-        with open(path_or_url, "rb") as f:
-            reader = PdfReader(f)
-            pages = [p.extract_text() or "" for p in reader.pages]
-            return _clean_text("\n\n".join(pages))
-    else:
-        with open(path_or_url, "r", encoding="utf-8") as f:
-            return _clean_text(f.read())
-
-
-# ========= [2] 자료 레지스트리 =========
-class QuizMaterialRegistry:
-    """
-    학습 자료(문서 텍스트)를 관리하는 클래스
-    - 텍스트를 받아서 청크 단위로 쪼개고 캐싱
-    - LLM 입력으로 활용
-    """
-    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 60):
-        self._chunk_size = chunk_size
-        self._chunk_overlap = chunk_overlap
-        self._texts_by_name: Dict[str, List[str]] = {}
-        self._chunks_by_name: Dict[str, List[str]] = {}
-
-    def put_material(self, name: str, texts: List[str]) -> None:
-        """
-        자료명을 key로 하여 원문 텍스트를 등록
-        - texts: 여러 문서의 텍스트 리스트
-        """
-        self._texts_by_name[name] = texts
-        if name in self._chunks_by_name:
-            del self._chunks_by_name[name]
-
-    def list_materials(self) -> List[str]:
-        """현재 등록된 자료명 리스트"""
-        return list(self._texts_by_name.keys())
-
-    def _ensure_chunks(self, name: str) -> None:
-        """
-        지정된 자료명에 대해 청크(split) 데이터 준비
-        """
-        if name in self._chunks_by_name:
-            return
-        texts = self._texts_by_name.get(name)
-        if not texts:
-            raise KeyError(f"'{name}' 자료를 찾을 수 없습니다.")
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=self._chunk_size,
-            chunk_overlap=self._chunk_overlap,
-            separators=["\n\n", "\n", " ", ""],
+    
+async def _get_vector_index(session: AsyncSession, user_id: uuid.UUID, subject_id: int) -> VectorIndexTable:
+    """user+subject 에 해당하는 인덱스 1행을 가져온다(없으면 404)."""
+    q = await session.execute(
+        select(VectorIndexTable).where(
+            VectorIndexTable.user_id == user_id,
+            VectorIndexTable.subject_id == subject_id
         )
-        merged = "\n\n".join(texts).strip()
-        chunks = splitter.split_text(merged)
-        # 공백 아닌 문자열만 저장
-        self._chunks_by_name[name] = [c for c in chunks if isinstance(c, str) and c.strip()]
+    )
+    row = q.scalar_one_or_none()
+    if not row:
+        # 업로드/인덱싱이 아직 안 된 과목
+        raise HTTPException(404, "No vector index for this subject. Upload materials first.")
+    return row
 
-    def get_all_chunks(self, name: str) -> List[str]:
-        """지정된 자료의 모든 청크 반환"""
-        self._ensure_chunks(name)
-        return self._chunks_by_name[name]
+def _load_chroma(index_row: VectorIndexTable) -> Chroma:
+    """
+    RDB에 저장된 컬렉션 식별자(이름/경로)로 Chroma를 로드한다.
+    실제 임베딩/검색은 디스크의 persist_dir에서 일어난다.
+    """
+    return Chroma(
+        collection_name=index_row.collection_name,
+        persist_directory=index_row.persist_dir,
+        embedding_function=_EMBEDDINGS,
+    )
 
+def _calc_grade(accuracy: float) -> str:
+    if accuracy >= 90:
+        return "A"
+    elif accuracy >= 75:
+        return "B"
+    elif accuracy >= 50:
+        return "C"
+    else:
+        return "D"
 
-# ========= [3] 출력 스키마 =========
+# ========= [1] 출력 스키마 =========
 class QuizQuestion(BaseModel):
     """
     생성된 문제 1개를 표현하는 모델
@@ -162,16 +109,31 @@ class QuizSet(BaseModel):
     items: List[QuizQuestion]
 
 
-# ========= [4] 문제 생성기 =========
+# ========= [2] 문제 생성기 =========
 class QuizGenerator:
     """
-    LLM(Gemini) 기반 문제 생성기
-    - 입력: 자료 청크
-    - 출력: QuizSet (문항 리스트)
+    현재 세션에서 생성한 '임베딩 벡터DB + 청크'를 기반으로 문제를 생성.
+    - temp_vectordb 를 사용
+    - CONTEXT는 retriever를 통해 유사 청크를 모아서 구성
+    - LLM 구조화 출력으로 JSON 스키마 보장
     """
-    def __init__(self, registry: QuizMaterialRegistry, llm: ChatGoogleGenerativeAI):
-        self.registry = registry
+    def __init__(
+        self,
+        llm: ChatGoogleGenerativeAI,
+        vectordb: Chroma,
+        source_name: str,
+        bm25_threshold: float = 2.0,
+        retriever_k: int = 6,
+        sample_span: int = 2,
+    ):
         self.llm = llm
+        self.vdb = vectordb
+        self.source = source_name
+        self.retriever = self.vdb.as_retriever(search_kwargs={"k": max(retriever_k, sample_span)})
+        self.sample_span = max(1, sample_span)
+        self.bm25_threshold = bm25_threshold
+
+        self._bm25 = None
 
     # --- 문자열 정규화 ---
     @staticmethod
@@ -196,24 +158,6 @@ class QuizGenerator:
         }
         return m.get((d or "").strip().lower(), d)
 
-    # --- BM25 관련 ---
-    @staticmethod
-    def _build_bm25(chunks: List[str]) -> Optional["BM25Okapi"]:
-        """BM25 인덱스 빌드"""
-        if not _HAS_BM25:
-            return None
-        tokenized = [c.split() for c in chunks]
-        return BM25Okapi(tokenized)
-
-    @staticmethod
-    def _bm25_max_score(bm25: Optional["BM25Okapi"], text: str) -> float:
-        """문항과 정답이 자료에 잘 근거하는지 점수"""
-        if bm25 is None:
-            return 0.0
-        q = text.split()
-        scores = bm25.get_scores(q)
-        return float(max(scores)) if scores else 0.0
-
     # --- LLM 한 문제 생성 ---
     def _gen_one(self, qid: int, qtype: str, difficulty: str, context: str, source: str) -> QuizQuestion:
         """
@@ -221,90 +165,113 @@ class QuizGenerator:
         """
         structured = self.llm.with_structured_output(QuizQuestion)
         prompt = f"""
-당신은 학습용 퀴즈 출제자입니다. 아래 CONTEXT에서만 문제를 만드세요.
+당신은 학습용 퀴즈 출제자입니다. 아래 CONTEXT의 내용에서만 근거를 찾아 정확히 1개의 문제를 만드세요.    
 
-- type: "{qtype}"
-- difficulty: "{difficulty}"
+- type은 "{qtype}" 로 설정합니다.
+- difficulty는 "{difficulty}" 로 설정합니다.
 - 객관식(type="객관식")일 때:
-  * options는 정확히 4개
-  * answer는 정답 보기 텍스트 그대로
-  * explanation: 왜 정답인지, 나머지는 왜 틀렸는지
-- 단답형/주관식일 때:
-  * answer는 핵심 키워드/요점
-  * explanation: 근거를 간단히 요약
-- 절대 CONTEXT 밖 지식 포함 금지
+  * options는 정확히 4개를 만드세요.
+  * 오직 하나만 정답이어야 합니다.
+  * answer에는 보기 중 정답 '텍스트'를 그대로 쓰세요.
+  * explanation에는 '왜 정답인지'와 '오답 배제 근거'를 간단히 쓰세요.
+- 단답형일 때: answer는 한두 문장 또는 핵심 키워드.
+- 주관식일 때: answer는 채점 포인트(핵심 요점).
+- CONTEXT 밖 사실은 절대 포함하지 마세요.
 - citations: {{ "source": "{source}" }}
 - id에는 {qid} 입력
 
-CONTEXT:
+아래 제공된 CONTEXT(본문 내용) 안에서만 문제를 만드세요.
+- 절대로 "CONTEXT에서 무엇을 언급했나요?" 같은 메타 질문을 하지 마세요.
+- 반드시 CONTEXT 안의 실제 지식을 기반으로 출제하세요.
+
+[CONTEXT 시작]
 {context}
+[CONTEXT 끝]
 """
         return structured.invoke(prompt)
 
     # --- 문제 세트 생성 ---
     def generate(
-        self,
-        material_name: str,
-        user_type: Union[str, List[str]],
-        user_difficulty: str,
-        n_questions: int = 5,
-        sample_span: int = 1,
-        random_seed: Optional[int] = None,
-    ) -> QuizSet:
+    self,
+    user_type: Union[str, List[str]],
+    user_difficulty: str,
+    docs: List["DocumentTable"],
+    n_questions: int = 5,
+    random_seed: Optional[int] = None,
+) -> QuizSet:
         if random_seed is not None:
             random.seed(random_seed)
 
-        chunks = self.registry.get_all_chunks(material_name)
-        if not chunks:
-            raise ValueError(f"선택한 자료 '{material_name}' 에서 사용할 청크가 없습니다.")
+        # ✅ 여러 유형 허용
+        if isinstance(user_type, str):
+            qtypes = [self._normalize_type(user_type)]
+        else:
+            qtypes = [self._normalize_type(t) for t in user_type or []]
+        diff = self._normalize_diff(user_difficulty)
+        
+        # ✅ VectorDB에서 전체 chunk 로드
+        all_data = self.vdb.get(include=["documents", "metadatas"])
+        documents = all_data.get("documents", [])
+        metadatas = all_data.get("metadatas", [])
 
-        bm25 = self._build_bm25(chunks)
+        if not documents:
+            raise HTTPException(500, "VectorDB에 저장된 context가 없습니다. 자료를 업로드해주세요.")
+
+        # ✅ 사용자가 선택한 document_id만 필터링
+        allowed_doc_ids = [d.document_id for d in docs]
+        filtered = [
+            (doc, meta) for doc, meta in zip(documents, metadatas)
+            if meta and meta.get("document_id") in allowed_doc_ids
+        ]
+        
+        if not filtered:
+            raise HTTPException(500, "선택된 자료에서 context를 찾을 수 없습니다.")
+
         items: List[QuizQuestion] = []
+        max_trials = n_questions * 5  # 안전장치 (예: 5배 시도 후 중단)
+        trials = 0
 
-        for qid in range(1, n_questions + 1):
-            # 문제 유형 선택 (리스트면 라운드로빈)
-            if isinstance(user_type, list):
-                qtype = self._normalize_type(user_type[(qid - 1) % len(user_type)])
-            else:
-                qtype = self._normalize_type(user_type)
+        while len(items) < n_questions and trials < max_trials:
+            trials += 1
+            qtype = random.choice(qtypes)   # ✅ 여러 유형 중 랜덤 선택
+            
+            # ✅ 선택된 문서 chunk 중 랜덤 선택
+            doc, meta = random.choice(filtered)
+            context = (doc or "").strip()
+            if len(context) < 50:   # 너무 짧으면 무시
+                continue
 
-            # 앵커 청크 선택
-            anchor = random.choice(chunks)
+            context = context[:1000]  # 잘라내기
 
-            # BM25로 관련 청크 뽑기
-            if bm25 is not None:
-                query_tokens = anchor.split()
-                scores = bm25.get_scores(query_tokens)
-                top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:max(1, sample_span)]
-                picked = [chunks[i] for i in top_idx]
-            else:
-                picked = [anchor]
+            item = self._gen_one(
+                qid=len(items) + 1,   # ⚠️ 현재까지 추가된 개수 기준
+                qtype=qtype,
+                difficulty=diff,
+                context=context,
+                source=self.source,
+            )
 
-            context = "\n\n".join(picked)
-
-            # 문제 생성
-            item = self._gen_one(qid=qid, qtype=qtype, difficulty=user_difficulty, context=context, source=material_name)
-
-            # 객관식 옵션 보정
-            if qtype == "객관식":
-                if not item.options or len(item.options) != 4:
-                    item.options = None
-
-            # citations 보강
-            if not item.citations:
-                item.citations = {"source": material_name}
+            # 객관식 옵션 검증
+            if qtype == "객관식" and (not item.options or len(item.options) != 4):
+                continue
 
             items.append(item)
+            
+        if len(items) < n_questions:
+            raise HTTPException(
+                500, f"요청한 {n_questions}문제 중 {len(items)}문제만 생성되었습니다."
+    )
 
-        return QuizSet(source=material_name, items=items)
+        return QuizSet(source=self.source, items=items)
 
 
-# ========= [5] 공개 서비스 API =========
+# ========= [3] 공개 서비스 API =========
 async def generate_quiz_for_subject(
     session: AsyncSession,
     *,
     user_id: str,
     subject_id: int,
+    doc_ids: Optional[List[int]] = None,
     qtype: Union[str, List[str]],
     difficulty: str,
     num_questions: int,
@@ -312,62 +279,51 @@ async def generate_quiz_for_subject(
 ) -> Dict[str, any]:
     """
     주어진 과목(subject_id)에 대해 퀴즈를 생성하고 DB에 저장
-    1) DocumentTable에서 문서 조회
-    2) file_url 기반으로 텍스트 로드
-    3) QuizGenerator를 통해 문제 세트 생성
-    4) QuizTable/QuestionBankTable에 저장
-    5) QuizSet(JSON) 반환
+    - QuizTable + QuestionBankTable + QuizAttemptTable 생성
+    - QuizSet(JSON) + quiz_attempt_id 반환
     """
-    # 1) subject에 연결된 문서 조회
-    stmt = select(DocumentTable).where(DocumentTable.subject_id == subject_id)
-    result = await session.execute(stmt)
-    docs = result.scalars().all()
+    # 1. 인덱스 로드
+    vindex = await _get_vector_index(session, user_id, subject_id)
+    temp_vectordb = _load_chroma(vindex)
+            
+    # ✅ 선택된 문서 메타 조회 (VectorDB 필터용)
+    q = select(DocumentTable).where(DocumentTable.subject_id == subject_id)
+    if doc_ids:
+        q = q.where(DocumentTable.document_id.in_(doc_ids))  # ⚠️ PK 이름 확인
+    docs = (await session.execute(q)).scalars().all()
+    
     if not docs:
-        raise ValueError("해당 과목에 업로드된 자료가 없습니다.")
+        raise HTTPException(404, "선택된 자료가 없습니다.")
 
-    doc = docs[0]
-    if not doc.file_url:
-        raise ValueError("선택한 자료에 file_url이 없어 텍스트를 로딩할 수 없습니다.")
+    source_name = ", ".join(d.title for d in docs)
 
-    # 2) 텍스트 로드
-    text = _load_text_from_path_or_url(doc.file_url)
-    if not text or len(text) < 20:
-        raise ValueError("자료 텍스트가 비어있거나 너무 짧습니다.")
+    # 3) LLM 초기화 & 문제 생성
+    gen = QuizGenerator(
+                llm=llm,
+                vectordb=temp_vectordb,
+                source_name=source_name,
+                bm25_threshold=2.0,    # BM25 설치 시 가벼운 신뢰도 점검
+                retriever_k=6,
+                sample_span=2,
+            )
+    quiz_set = gen.generate(user_type=qtype, user_difficulty=difficulty, docs=docs, n_questions=num_questions)
 
-    # 3) 문제 유형 파싱 (문자열 → 리스트)
-    if isinstance(qtype, str) and ("," in qtype):
-        qtype_list = [t.strip() for t in qtype.split(",") if t.strip()]
-    else:
-        qtype_list = qtype
-
-    # 4) 레지스트리 구성
-    registry = QuizMaterialRegistry()
-    registry.put_material(doc.title, [text])
-
-    # 5) LLM 초기화 & 문제 생성
-    use_model = model_name or DEFAULT_GEMINI_MODEL
-    llm = ChatGoogleGenerativeAI(model=use_model)
-    generator = QuizGenerator(registry=registry, llm=llm)
-    quiz_set = generator.generate(
-        material_name=doc.title,
-        user_type=qtype_list,
-        user_difficulty=difficulty,
-        n_questions=num_questions,
-    )
-
-    # 6) DB 저장 (퀴즈 메타 + 문항들)
+    # 4) QuizTable 저장
     new_quiz = QuizTable(
         user_id=user_id,
         subject_id=subject_id,
-        title=f"{doc.title} 기반 퀴즈",
+        title=f"{source_name} 기반 퀴즈",
         requested_count=num_questions,
         difficulty=difficulty,
-        type="multiple_choice" if "객관식" in str(qtype_list) else "short_answer",
+        type="multiple_choice" if (
+            isinstance(qtype, list) and any(t == "객관식" for t in qtype)
+            ) else "short_answer",
         created_at=datetime.utcnow(),
     )
     session.add(new_quiz)
     await session.flush()  # quiz_id 확보
 
+    # 5) QuestionBankTable 저장
     for q in quiz_set.items:
         question_row = QuestionBankTable(
             quiz_id=new_quiz.quiz_id,
@@ -382,8 +338,190 @@ async def generate_quiz_for_subject(
         )
         session.add(question_row)
 
+    await session.flush()
+
+    # 6) QuizAttemptTable 생성 (시작 로그)
+    new_attempt = QuizAttemptTable(
+        quiz_id=new_quiz.quiz_id,
+        user_id=user_id,
+        started_at=datetime.utcnow(),
+        created_at=datetime.utcnow(),
+    )
+    session.add(new_attempt)
+    await session.flush()  # quiz_attempt_id 확보
+
+    # 7) 커밋
     await session.commit()
-    await session.refresh(new_quiz)
+    await session.refresh(new_attempt)
 
     # 7) JSON 형태로 반환
-    return quiz_set.model_dump()
+    return {
+    "quiz_attempt_id": new_attempt.quiz_attempt_id,   # ✅ 새로 생성된 quiz_attempt_id
+    "quiz": quiz_set.model_dump()
+}
+
+
+from difflib import SequenceMatcher
+
+def normalize(text: str) -> str:
+    return (text or "").strip().lower().replace(" ", "")
+
+def similar(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio()
+
+
+
+# 각 문제에 사용자의 응답 저장 API 
+async def save_next_attempt(session: AsyncSession, req: NextRequest, user_id: str):
+    # 1. 문제 존재 여부 확인
+    q = await session.execute(
+        select(QuestionBankTable).where(QuestionBankTable.question_bank_id == req.question_bank_id)
+    )
+    question = q.scalar_one_or_none()
+    if not question:
+        raise HTTPException(status_code=404, detail="문항을 찾을 수 없습니다.")
+
+    # 2. 채점 (단순 문자열 비교 — 필요하면 정규화/대소문자 무시 등 보강 가능)
+    qtype = question.qtype
+    correct_text = (question.correct_text or "").strip()
+
+    if qtype == "객관식":
+        # user_answer가 index일 수 있으므로 처리
+        try:
+            # JSON 필드로 저장된 options에서 choices 꺼내오기
+            options = question.options.get("choices") if question.options else []
+            user_idx = int(req.user_answer) if str(req.user_answer).isdigit() else -1
+            user_text = options[user_idx] if 0 <= user_idx < len(options) else req.user_answer
+        except Exception:
+            user_text = req.user_answer
+
+        is_correct = normalize(user_text) == normalize(correct_text)
+
+    elif qtype == "단답형":
+        is_correct = normalize(req.user_answer) == normalize(correct_text)
+
+    else:  # 주관식
+        is_correct = similar(normalize(req.user_answer), normalize(correct_text)) >= 0.7
+        
+    # 4. DB 저장
+    attempt_item = AttemptItemTable(
+        quiz_attempt_id=req.quiz_attempt_id,
+        question_bank_id=req.question_bank_id,
+        user_answer=req.user_answer,
+        is_correct=is_correct,
+        created_at=datetime.utcnow(),
+    )
+    session.add(attempt_item)
+    await session.commit()
+    await session.refresh(attempt_item)
+
+    return {
+        "attempt_item_id": attempt_item.attempt_item_id,
+        "question_bank_id": attempt_item.question_bank_id,
+        "user_answer": attempt_item.user_answer,
+        "is_correct": attempt_item.is_correct,
+    }
+    
+    
+# 한 세트에 대한 사용자의 응답 저장 API
+async def save_complete_attempt(session: AsyncSession, req: CompleteRequest, user_id: str):
+    # 1. 시도 로그 가져오기
+    q = await session.execute(
+        select(QuizAttemptTable).where(
+            QuizAttemptTable.quiz_attempt_id == req.quiz_attempt_id,
+            QuizAttemptTable.user_id == user_id
+        )
+    )
+    attempt = q.scalar_one_or_none()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="해당 퀴즈 시도를 찾을 수 없습니다.")
+
+    # 2. 문항별 로그 집계
+    q2 = await session.execute(
+        select(
+            func.count(AttemptItemTable.attempt_item_id),
+            func.sum(func.ifnull(AttemptItemTable.is_correct, 0))
+        ).where(AttemptItemTable.quiz_attempt_id == req.quiz_attempt_id)
+    )
+    total, correct = q2.one()
+    total = total or 0
+    correct = correct or 0
+
+    # 3. 정답률/점수 계산
+    accuracy = (int(correct) / int(total) * 100.0) if total > 0 else 0.0
+
+    # 4. QuizAttemptTable 업데이트
+    attempt.finished_at = parser.isoparse(req.finished_at) if req.finished_at else datetime.utcnow()
+    attempt.correct_count = correct
+    attempt.total_count = total
+    attempt.accuracy = accuracy
+    attempt.grade = _calc_grade(accuracy)   # ✅ 등급 계산 후 저장
+
+    await session.commit()
+    await session.refresh(attempt)
+
+    # 5. 응답
+    return {
+        "quiz_attempt_id": attempt.quiz_attempt_id,
+        "quiz_id": attempt.quiz_id,
+        "user_id": attempt.user_id,
+        "started_at": attempt.started_at,
+        "finished_at": attempt.finished_at,
+        "total_count": attempt.total_count,
+        "correct_count": attempt.correct_count,
+        "accuracy": attempt.accuracy,
+    }   
+    
+    
+async def fetch_quiz_attempt_detail(session: AsyncSession, attempt_id: int, user_id: str):
+    # 1) QuizAttemptTable 확인
+    q = await session.execute(
+        select(QuizAttemptTable).where(
+            QuizAttemptTable.quiz_attempt_id == attempt_id,
+            QuizAttemptTable.user_id == user_id
+        )
+    )
+    attempt = q.scalar_one_or_none()
+    if not attempt:
+        raise HTTPException(404, "해당 퀴즈 시도를 찾을 수 없습니다.")
+
+    # 2) AttemptItemTable + QuestionBankTable join
+    q2 = await session.execute(
+        select(
+            AttemptItemTable.attempt_item_id,
+            AttemptItemTable.user_answer,
+            AttemptItemTable.is_correct,
+            QuestionBankTable.question_bank_id,
+            QuestionBankTable.stem,
+            QuestionBankTable.correct_text,
+            QuestionBankTable.explanation,
+            QuestionBankTable.difficulty,
+        )
+        .join(QuestionBankTable, AttemptItemTable.question_bank_id == QuestionBankTable.question_bank_id)
+        .where(AttemptItemTable.quiz_attempt_id == attempt_id)
+    )
+    items = [
+        {
+            "question_id": row.question_bank_id,
+            "stem": row.stem,
+            "user_answer": row.user_answer,
+            "correct_answer": row.correct_text,
+            "is_correct": row.is_correct,
+            "explanation": row.explanation,
+            "difficulty": row.difficulty,
+        }
+        for row in q2
+    ]
+
+    # 3) 집계된 결과 반환
+    return {
+        "quiz_attempt_id": attempt.quiz_attempt_id,
+        "quiz_id": attempt.quiz_id,
+        "started_at": attempt.started_at,
+        "finished_at": attempt.finished_at,
+        "total_count": attempt.total_count,
+        "correct_count": attempt.correct_count,
+        "accuracy": attempt.accuracy,
+        "grade": attempt.grade,
+        "items": items,
+    }
