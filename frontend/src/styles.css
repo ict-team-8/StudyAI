@@ -272,3 +272,9 @@ body{
 .sa-avatar--ai{
   background: radial-gradient(28px 28px at 50% 35%, #45d48a 0%, #12b56a 70%);
 }
+
+/* 업로드 유형 힌트 */
+.sa-hint{ display:grid; gap:6px; margin:8px 0 14px }
+.sa-hint__item{ color:#475569; font-size:13px }
+.sa-hint__item b{ color:#111827 }
+.sa-hint__note{ color:#6b7280; font-size:12px }

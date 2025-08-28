@@ -46,3 +46,7 @@ deep-translator>=1.11.4
 
 # === PDF 내보내기 기능 ===
 fpdf2>=2.7.9
+
+# === OCR ===
+pytesseract
+Pillow
