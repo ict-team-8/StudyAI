@@ -67,14 +67,17 @@ def _load_chroma(index_row: VectorIndexTable) -> Chroma:
     )
 
 def _calc_grade(accuracy: float) -> str:
+    # accuracy: 0~100
     if accuracy >= 90:
         return "A"
-    elif accuracy >= 75:
+    elif accuracy >= 80:
         return "B"
-    elif accuracy >= 50:
+    elif accuracy >= 70:
         return "C"
-    else:
+    elif accuracy >= 60:
         return "D"
+    else:
+        return "F"
 
 # ========= [1] 출력 스키마 =========
 class QuizQuestion(BaseModel):

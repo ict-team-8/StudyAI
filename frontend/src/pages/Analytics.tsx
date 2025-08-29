@@ -32,9 +32,13 @@ type QuizSetBrief = { quizset_id:number; requested_count:number; difficulty:"eas
 type QuizAttemptBrief = { attempt_id:number; quizset_id:number; submitted_at?:string|null; correct_count:number; accuracy:number; grade:string; };
 type SubjectHistoryResponse = { summaries:SummaryBrief[]; qa_sessions:QASessionBrief[]; quiz_sets:QuizSetBrief[]; quiz_attempts:QuizAttemptBrief[]; };
 
-const pct = (v:number,d=0)=>`${(v*100).toFixed(d)}%`;
+// const pct = (v:number,d=0)=>`${(v*100).toFixed(d)}%`;
+const pct = (v:number, d=0) => `${v.toFixed(d)}%`;   // ← 이미 % 값이 들어옴
 const hhmm = (m:number)=>{ const h=Math.floor(m/60), mi=m%60; return h?`${h}시간 ${mi}분`:`${mi}분`; };
 const delta = (p:number)=>`${p>0?"+":""}${p.toFixed(0)}%`;
+
+const timeLabel = (m:number, studied:boolean) =>
+  m > 0 ? hhmm(m) : (studied ? "1분 미만" : "0분");
 
 export default function Analytics({ subjectId, onPickSubject }: Props){
   const [subject, setSubject] = useState<Subject|null>(null);
@@ -117,9 +121,9 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
       {/* 상단 메트릭 4칸 */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
         <MetricCard title="전체 정답률" icon={<Trophy/>}
-          main={ov?pct(ov.overall_accuracy):"0%"} sub={ov?`등급 ${ov.grade}`:"등급 F"} meter={ov?.overall_accuracy}/>
+          main={ov?pct(ov.overall_accuracy):"0%"} sub={ov?`등급 ${ov.grade}`:"등급 F"} meter={(ov?.overall_accuracy ?? 0) / 100}/>
         <MetricCard title="총 문제 수" icon={<BookOpenText/>}
-          main={ov?`${ov.total_questions_answered}`:"0"} sub={ov?`이번주 ${delta(ov.weekly_delta_percent)} · 정답 ${ov.total_correct}개`:"이번주 0% · 정답 0개"}/>
+          main={ov ? timeLabel(ov.total_study_minutes, ov.total_questions_answered > 0) : "0분"} sub={ov?`이번주 ${delta(ov.weekly_delta_percent)} · 정답 ${ov.total_correct}개`:"이번주 0% · 정답 0개"}/>
         <MetricCard title="총 학습시간" icon={<Clock/>}
           main={ov?hhmm(ov.total_study_minutes):"0분"} sub={ov?`연속 ${ov.streak_days}일 · 주간 평균 ${ov.weekly_avg_minutes}분`:"연속 0일 · 주간 평균 0분"}/>
         <MetricCard title="학습 상태" icon={<Gauge/>}
@@ -173,7 +177,7 @@ export default function Analytics({ subjectId, onPickSubject }: Props){
               title="세트 풀이 결과"
               items={(his?.quiz_attempts ?? []).map(a=>({
                 id:a.attempt_id,
-                title:`세트 #${a.quizset_id} · ${Math.round(a.accuracy*100)}% (${a.grade})`,
+                title:`세트 #${a.quizset_id} · ${Math.round(a.accuracy)}% (${a.grade})`,
                 right:`정답 ${a.correct_count}개`,
                 subtitle:a.submitted_at ? new Date(a.submitted_at).toLocaleString() : "제출시각 없음"
               }))}
