@@ -13,16 +13,18 @@ from models.quiz_domain import QuizTable, QuizAttemptTable, AttemptItemTable, Qu
 
 # ---------------- 공통 규칙 ----------------
 def letter_grade(acc: float) -> str:
-    if acc >= 0.90: return "A"
-    if acc >= 0.80: return "B"
-    if acc >= 0.70: return "C"
-    if acc >= 0.60: return "D"
+    # acc: 0~100
+    if acc >= 90: return "A"
+    if acc >= 80: return "B"
+    if acc >= 70: return "C"
+    if acc >= 60: return "D"
     return "F"
 
 def learning_status(acc: float) -> str:
-    if acc >= 0.90: return "최우수"
-    if acc >= 0.80: return "우수"
-    if acc >= 0.65: return "보통"
+    # acc: 0~100
+    if acc >= 90: return "최우수"
+    if acc >= 80: return "우수"
+    if acc >= 65: return "보통"
     return "노력 필요"
 
 # ---------------- 상단 메트릭 ----------------
@@ -32,13 +34,13 @@ async def get_overview_metrics(
     """
     MySQL 기준 계산:
       - 전체 정답수/문항수: AttemptItemTable join QuizAttemptTable(user/과목) 합계
-      - 이번주/저번주 문제수: a.finished_at 주간 범위로 필터 후 item count
-      - 총 학습시간(분): AttemptItemTable.time_ms 합
-      - 주간 평균(분): 이번주 time_ms 합 / 7
-      - streak: AttemptItemTable.created_at을 날짜로 묶어 최근부터 연속>0 계산 (연속 n일)
+      - 이번주/저번주 문제수: finished_at 주간 범위로 AttemptItem 개수 비교
+      - 총 학습시간(분): 각 QuizAttempt의 (finished_at - started_at) 합
+      - 주간 평균(분): 이번 주 (finished_at - started_at) 합 / 7
+      - streak: AttemptItemTable.created_at을 날짜로 묶어 '그날 풀이했는지'를 연속 카운트
     """
 
-    # 과목 필터를 attempt 쿼리에 주기 위한 공통 서브쿼리
+    # 과목 필터용 공통 서브쿼리
     if subject_id is not None:
         quiz_id_subq = select(QuizTable.quiz_id).where(
             QuizTable.user_id == user_id, QuizTable.subject_id == subject_id
@@ -47,7 +49,6 @@ async def get_overview_metrics(
         quiz_id_subq = select(QuizTable.quiz_id).where(QuizTable.user_id == user_id)
 
     # ----- 전체 정답/총문항 -----
-    # MySQL 호환: SUM(CASE WHEN ... THEN 1 ELSE 0 END)
     q_total = (
         select(
             func.coalesce(func.sum(case((AttemptItemTable.is_correct == True, 1), else_=0)), 0),
@@ -63,11 +64,11 @@ async def get_overview_metrics(
     total_correct, total_questions = (await db.execute(q_total)).one()
     total_correct = int(total_correct or 0)
     total_questions = int(total_questions or 0)
-    acc = (total_correct / total_questions) if total_questions else 0.0
+    acc = (total_correct / total_questions * 100.0) if total_questions else 0.0
 
     # ----- 이번주/지난주 범위 -----
     today = datetime.now(timezone.utc).date()
-    week_start = today - timedelta(days=today.weekday())   # 월요일(UTC 기준)
+    week_start = today - timedelta(days=today.weekday())   # 월요일(UTC)
     week_end   = week_start + timedelta(days=7)
     prev_week_start = week_start - timedelta(days=7)
     prev_week_end   = week_start
@@ -80,7 +81,6 @@ async def get_overview_metrics(
             .where(
                 QuizAttemptTable.user_id == user_id,
                 QuizAttemptTable.quiz_id.in_(quiz_id_subq),
-                # finished_at이 없으면 created_at으로 바꾸는 것도 가능
                 QuizAttemptTable.finished_at >= datetime.combine(start_day, datetime.min.time(), tzinfo=timezone.utc),
                 QuizAttemptTable.finished_at <  datetime.combine(end_day,   datetime.min.time(), tzinfo=timezone.utc),
             )
@@ -92,35 +92,40 @@ async def get_overview_metrics(
     weekly_delta_percent = ((week_q - prev_week_q) / prev_week_q * 100.0) if prev_week_q else (100.0 if week_q > 0 else 0.0)
 
     # ----- 총 학습시간(분), 주간 평균(분) -----
-    q_time_total = (
-        select(func.coalesce(func.sum(AttemptItemTable.time_ms), 0))
-        .select_from(AttemptItemTable)
-        .join(QuizAttemptTable, AttemptItemTable.quiz_attempt_id == QuizAttemptTable.quiz_attempt_id)
+    # 완료된 attempt만 대상으로 (finished_at - started_at) 합산
+    base_attempt = (
+        select(QuizAttemptTable.started_at, QuizAttemptTable.finished_at)
         .where(
             QuizAttemptTable.user_id == user_id,
             QuizAttemptTable.quiz_id.in_(quiz_id_subq),
+            QuizAttemptTable.finished_at.is_not(None),
         )
     )
-    total_ms = int((await db.execute(q_time_total)).scalar() or 0)
-    total_study_minutes = total_ms // 60000
 
-    q_time_week = (
-        select(func.coalesce(func.sum(AttemptItemTable.time_ms), 0))
-        .select_from(AttemptItemTable)
-        .join(QuizAttemptTable, AttemptItemTable.quiz_attempt_id == QuizAttemptTable.quiz_attempt_id)
-        .where(
-            QuizAttemptTable.user_id == user_id,
-            QuizAttemptTable.quiz_id.in_(quiz_id_subq),
+    # 전체
+    rows_all = (await db.execute(base_attempt)).all()
+    total_sec = 0
+    for s, f in rows_all:
+        if s and f and f > s:
+            total_sec += int((f - s).total_seconds())
+    total_study_minutes = total_sec // 60
+
+    # 이번 주
+    rows_week = (await db.execute(
+        base_attempt.where(
             QuizAttemptTable.finished_at >= datetime.combine(week_start, datetime.min.time(), tzinfo=timezone.utc),
             QuizAttemptTable.finished_at <  datetime.combine(week_end,   datetime.min.time(), tzinfo=timezone.utc),
         )
-    )
-    week_ms = int((await db.execute(q_time_week)).scalar() or 0)
-    weekly_avg_minutes = (week_ms // 60000) // 7
+    )).all()
+    week_sec = 0
+    for s, f in rows_week:
+        if s and f and f > s:
+            week_sec += int((f - s).total_seconds())
+    weekly_avg_minutes = (week_sec // 60) // 7
 
-    # ----- streak(연속 n일) -----
+    # ----- streak(연속 n일) : 그날에 한 문제라도 풀이했으면 +1 -----
     q_days = (
-        select(func.date(AttemptItemTable.created_at), func.coalesce(func.sum(AttemptItemTable.time_ms), 0))
+        select(func.date(AttemptItemTable.created_at), func.count(AttemptItemTable.attempt_item_id))
         .select_from(AttemptItemTable)
         .join(QuizAttemptTable, AttemptItemTable.quiz_attempt_id == QuizAttemptTable.quiz_attempt_id)
         .where(
@@ -130,7 +135,7 @@ async def get_overview_metrics(
         .group_by(func.date(AttemptItemTable.created_at))
     )
     rows = (await db.execute(q_days)).all()
-    by_day = {d: int(ms) for d, ms in rows}
+    by_day = {d: int(cnt) for d, cnt in rows}
     streak = 0
     cur = today
     while by_day.get(cur, 0) > 0:
