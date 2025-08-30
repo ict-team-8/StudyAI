@@ -1,3 +1,6 @@
+
+<div align="center">
+ 
 ## ✨ AI 학습 특화 챗봇 서비스 ✨
 
 > 긴 학습자료를 빠르게 요약하고, Q&A·문제 생성·피드백까지 제공하는 **AI 학습 플랫폼**  
@@ -14,7 +17,7 @@
 
 <br>
 
-<div align="center">
+
 
 ## ⚙️ Tech Stack
 
@@ -27,10 +30,14 @@
 | Infra/Tools | Swagger, Notion, Discord |
  
 
-</div>
+
+<br>
 
 
 ## 🚀 핵심 기능 (Key Features)
+
+</div>
+
 
 1. **요약 (Summarization)**  
    - 과목 선택 후 자료(**PDF, Text, Image**) 업로드  
@@ -60,7 +67,10 @@
    - 학습 통계 제공: **전체 정답률, 문제 수, 학습 시간, 학습 상태**  
    - **과목별 요약, Q&A 기록, 문제풀이 결과**를 시간순으로 정리  
    - 개인별 **맞춤 피드백** 제공
-  
+
+
+<div align="center">
+
 
 <br> 
 
@@ -83,7 +93,7 @@
 
   
 &nbsp;
-## 👤 Backend & Frontend Developers
+## 👤 Contributors
 
 <table>
     <tr height="200px">
@@ -103,3 +113,5 @@
         </td>
     </tr>
 </table>
+
+</div>
