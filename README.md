@@ -1,41 +1,31 @@
-## 🤖 AI 학습 보조 챗봇 서비스
+## ✨ AI 학습 특화 챗봇 서비스 ✨
 
-<img width="1152" height="648" alt="프젝 주제" src="https://github.com/user-attachments/assets/028c3f80-2e64-418e-af89-2f14f51c4d10" />
-<div align="center">
+> 긴 학습자료를 빠르게 요약하고, Q&A·문제 생성·피드백까지 제공하는 **AI 학습 플랫폼**  
+> 시험 대비와 자기주도 학습의 부담을 줄이고 **시간을 절약**해 학습 효율을 높입니다.
 
-### ✨ AI 학습 특화 챗봇 서비스 ✨
+<br>
 
-학생·수험생·연구자를 위해 긴 문서, PDF, 이미지 자료를 빠르게 **요약 📄**하고,  
-Q&A, 예상 문제, 개인 맞춤 **피드백 🎯**을 제공합니다.  
 
-시험 대비와 자기주도 학습에서 가장 부담되는  
-자료 정리·문제 출제·취약점 진단을 **자동화 ⚡**하여  
-⏳ 시간을 절약하고 📈 학습 효율을 높여드립니다.  
 
-</div>
+## 🎥 시연 영상
+[![시연 영상](https://img.shields.io/badge/YouTube-영상보기-red?logo=youtube)](https://github.com/user-attachments/assets/2b89e008-bf75-496b-967c-a0d972f91ce8)
+
+
+
+<br>
 
 <div align="center">
 
 ## ⚙️ Tech Stack
 
-### 🖥️ Frontend  
-<img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black"> 
-<img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white"> 
-<img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white">  
-
-### ⚡ Backend  
-<img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white"> 
-<img src="https://img.shields.io/badge/FastAPI Users-009688?style=for-the-badge&logo=fastapi&logoColor=white"> 
-<img src="https://img.shields.io/badge/Pydantic v2-E92063?style=for-the-badge&logo=pydantic&logoColor=white"> 
-<img src="https://img.shields.io/badge/Uvicorn-4B8BBE?style=for-the-badge&logo=python&logoColor=white">  
-
-### 🗄️ Database  
-<img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white">  
-
-### 🛠️ Infra & Tools  
-<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"> 
-<img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white"> 
-<img src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black">  
+| 영역 | 기술 |
+|------|------|
+| Frontend | React, TypeScript, Vite |
+| Backend | FastAPI, FastAPI-Users, Pydantic v2, Uvicorn |
+| AI/ML | Gemini API, LangChain, SentenceTransformers, Chroma |
+| Database | MySQL |
+| Infra/Tools | Swagger, Notion, Discord |
+ 
 
 </div>
 
@@ -70,6 +60,27 @@ Q&A, 예상 문제, 개인 맞춤 **피드백 🎯**을 제공합니다.
    - 학습 통계 제공: **전체 정답률, 문제 수, 학습 시간, 학습 상태**  
    - **과목별 요약, Q&A 기록, 문제풀이 결과**를 시간순으로 정리  
    - 개인별 **맞춤 피드백** 제공
+  
+
+<br> 
+
+## 🗂 시스템 구조 다이어그램
+
+<img width="549" height="282" alt="image" src="https://github.com/user-attachments/assets/ef224021-58f3-4c11-8d10-0fff14a8f076" />
+
+<img width="549" height="282" alt="image" src="https://github.com/user-attachments/assets/4406c410-277d-4333-b3b8-611fb49437ba" />
+
+<img width="538" height="288" alt="image" src="https://github.com/user-attachments/assets/24260553-9f04-42f3-979a-60ccc89c7386" />
+
+<img width="540" height="299" alt="image" src="https://github.com/user-attachments/assets/32f94d5e-0c5b-4a63-a5f6-b67535b446e8" />
+
+<img width="541" height="297" alt="image" src="https://github.com/user-attachments/assets/45018783-ff91-46b1-b99f-bd42e5e313b6" />
+
+<img width="541" height="292" alt="image" src="https://github.com/user-attachments/assets/b8b8b18c-f86a-44d3-821c-c81212e13996" />
+
+
+
+
   
 &nbsp;
 ## 👤 Backend & Frontend Developers
