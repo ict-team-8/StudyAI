@@ -89,8 +89,17 @@
 <img width="541" height="292" alt="image" src="https://github.com/user-attachments/assets/b8b8b18c-f86a-44d3-821c-c81212e13996" />
 
 
+<br>
+
+## 📉 ERD 설계도
 
 
+### 전체 ERD
+<img width="1233" height="639" alt="전체_ERD" src="https://github.com/user-attachments/assets/30c81a82-d881-4273-9446-bad02238ee89" />
+
+
+
+<br>
   
 &nbsp;
 ## 👤 Contributors
